@@ -1,0 +1,10 @@
+<Plugin>
+  <Information>
+    <Name>StatCaps</Name>
+    <Author>Rockberg</Author>
+    <Version>1.0 Beta</Version>
+    <Description>Shows how close each of your ratings is to the stat limit for your level. English, German and French interface. Requires the CalcStat library by Giseldah. Command: /statcaps</Description>
+  </Information>
+  <Package>StatCaps.Main</Package>
+  <Configuration Apartment="StatCaps"/>
+</Plugin>
