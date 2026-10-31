@@ -26,7 +26,12 @@ function StatCapsSetDatabase.Resolve(item)
     end
     local id = item.id or names[item.name];
     local record = id and StatCapsSetItems[id];
-    if (record and record.name == item.name
+    local matched;
+    if (record) then
+        matched, err = StatCapsCompanion.MatchesName(id, record.name, item.name);
+        if (matched == nil) then return nil, err; end
+    end
+    if (record and matched
         and (not item.category or record.category == item.category)) then
         return record.sets, true, id;
     end
@@ -36,7 +41,9 @@ function StatCapsSetDatabase.Resolve(item)
         identity, err = StatCapsItemDatabase.Identity(item.id);
         if (err) then return nil, err; end
         if (identity) then
-            if (identity.name ~= item.name or (item.category and identity.category ~= item.category)) then
+            matched, err = StatCapsCompanion.MatchesName(item.id, identity.name, item.name);
+            if (matched == nil) then return nil, err; end
+            if (not matched or (item.category and identity.category ~= item.category)) then
                 return nil, "Set item identity differs. Check its ID, name and category: " .. item.name;
             end
             return {}, true;
@@ -51,11 +58,19 @@ function StatCapsSetDatabase.Search(query, pieces, slot)
     query = type(query) == "string" and query:match("^%s*(.-)%s*$"):lower() or "";
     if (#query < 2) then return nil, "Enter at least 2 characters of a name, or a numeric ID."; end
     local results = {};
+    local translations;
+    if (pieces) then
+        translations, err = StatCapsCompanion.Names();
+        if (not translations) then return nil, err; end
+    end
+    query = StatCapsCompanion.Normalize(query);
     for id, record in pairs(pieces and StatCapsSetItems or StatCapsSetRecords) do
-        if ((tostring(id) == query or record.name:lower():find(query, 1, true))
+        local translated = translations and translations[id];
+        if ((tostring(id) == query or StatCapsCompanion.Normalize(record.name):find(query, 1, true)
+                or (translated and StatCapsCompanion.Normalize(translated):find(query, 1, true)))
             and (not pieces or not slot or StatCapsLoadouts.SlotFits(slot, record.slot))) then
             results[#results + 1] = {
-                id = id, name = record.name, slot = record.slot, category = record.category,
+                id = id, name = record.name, displayName = translated or record.name, slot = record.slot, category = record.category,
                 itemLevel = record.itemLevel, sets = record.sets
             };
         end

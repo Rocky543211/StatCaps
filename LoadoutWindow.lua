@@ -164,7 +164,7 @@ function StatCapsLoadoutWindow.Open(getContext, getProfiles, getPlan, savePlan, 
     local itemName = entry(editor, 22, 70, 455);
     local nameLabel = label(editor, "Item name", 22, 43, 455, 22);
     local levelLabel = label(editor, "Item level", 500, 43, 155, 22);
-    local extrasHelp = label(editor, "", 22, 43, 633, 120);
+    local extrasHelp = label(editor, "", 22, 43, 633, 85);
     extrasHelp:SetVisible(false);
     local itemLevel = entry(editor, 500, 70, 155);
     local identity = label(editor, "", 22, 105, 633, 24);
@@ -189,6 +189,7 @@ function StatCapsLoadoutWindow.Open(getContext, getProfiles, getPlan, savePlan, 
     end
     local editorHelp = label(editor, "Enter full item bonuses, including essences, not character totals.\nManual set additions must contain only bonuses not already counted automatically. Percentages and procs are not flat ratings.", 22, 459, 633, 46);
     local searchItem, searchPiece, setAssignment, setOnly;
+    local bonusWindow, sourcesWindow, consumableButton;
     local persistPlan;
 
     local function changed()
@@ -273,17 +274,21 @@ function StatCapsLoadoutWindow.Open(getContext, getProfiles, getPlan, savePlan, 
             return;
         end
         local original = state.original[editingSlot[1]];
+        local matched, matchError = true;
+        if (original) then matched, matchError = StatCapsCompanion.MatchesName(candidate.id, candidate.name, original.name); end
+        if (matched == nil) then editorStatus:SetText(T(matchError)); return; end
         if (editingSide == "original" and original and
-            (candidate.name ~= original.name or (original.category and candidate.category ~= original.category))) then
+            (not matched
+                or (original.category and candidate.category ~= original.category))) then
             editorStatus:SetText(T("Keep the equipped item's identity. Search its correct variant or enter its bonuses manually."));
             return;
         end
         draft = StatCapsLoadouts.CopyItem({
-            name = candidate.name, slot = editingSlot[3], category = candidate.category, values = candidate.values,
+            name = editingSide == "original" and original and original.name or candidate.name, slot = editingSlot[3], category = candidate.category, values = candidate.values,
             id = candidate.id, itemLevel = candidate.itemLevel or candidate.level,
             characterLevel = candidate.characterLevel, restrictions = candidate.restrictions,
-            icon = candidate.icon or (original and original.name == candidate.name and original.icon or nil),
-            iconLayers = candidate.iconLayers or (original and original.name == candidate.name and original.iconLayers or nil)
+            icon = candidate.icon or (original and matched and original.icon or nil),
+            iconLayers = candidate.iconLayers or (original and matched and original.iconLayers or nil)
         });
         fillEditor();
         search:SetVisible(false);
@@ -337,7 +342,7 @@ function StatCapsLoadoutWindow.Open(getContext, getProfiles, getPlan, savePlan, 
         for _, candidate in ipairs(results) do
             local row = Turbine.UI.Control();
             row:SetSize(612, 122);
-            label(row, candidate.name, 0, 0, 455, 40, true);
+            label(row, candidate.displayName or candidate.name, 0, 0, 455, 40, true);
             label(row, tostring(candidate.id) .. (candidate.itemLevel and
                 (" / " .. T("Item level") .. " " .. candidate.itemLevel) or ""), 0, 43, 455, 22, true);
             if (candidate.legendary) then
@@ -358,6 +363,12 @@ function StatCapsLoadoutWindow.Open(getContext, getProfiles, getPlan, savePlan, 
                     useCandidate(candidate);
                 end
             end);
+            if (searchMode ~= "sets") then
+                button(row, "Item sources", 466, 60, 137, function()
+                    if (sourcesWindow) then sourcesWindow:SetVisible(false); end
+                    sourcesWindow = StatCapsCompanion.OpenSources(candidate.id, candidate.displayName or candidate.name);
+                end);
+            end
             searchList:AddItem(row);
         end
     end
@@ -386,6 +397,7 @@ function StatCapsLoadoutWindow.Open(getContext, getProfiles, getPlan, savePlan, 
     qualityFilter = StatCapsTheme.ChoiceButton(search, "Quality", StatCapsItemDatabase.Qualities,
         447, 82, 208, query.TextChanged);
     openSearch = function(mode, variants)
+        if (bonusWindow) then bonusWindow:SetVisible(false); end
         searchMode, searchPage = mode, 1;
         searchVariants = variants;
         query:SetEnabled(mode ~= "variants");
@@ -418,11 +430,46 @@ function StatCapsLoadoutWindow.Open(getContext, getProfiles, getPlan, savePlan, 
     searchItem = button(editor, "Search item", 22, 140, 150, function() openSearch("items"); end);
     searchPiece = button(editor, "Find set piece", 182, 140, 150, function() openSearch("pieces"); end);
     setAssignment = button(editor, "Set: Automatic", 342, 140, 313, function() openSearch("sets"); end);
+    local function addBonus(kind)
+        local target = draft;
+        local targetState = state;
+        local side = editingSide;
+        local level = context.level;
+        draft.addedConsumables = draft.addedConsumables or {};
+        if (bonusWindow) then bonusWindow:SetVisible(false); end
+        bonusWindow = StatCapsCompanion.OpenBonuses(kind, level, function(values, count, candidate)
+            if (draft ~= target or state ~= targetState or editingSide ~= side
+                or not editor:IsVisible() or context.level ~= level) then
+                return nil, "The target item changed. Open its bonus picker again.";
+            end
+            if (kind == "consumable" and draft.addedConsumables[candidate.id]) then
+                return nil, "This consumable was already added in this editor. Remove duplicate bonuses manually before adding it again.";
+            end
+            local current, err = editorValues();
+            if (not current) then return nil, err; end
+            local sum;
+            sum, err = StatCapsCompanion.AddBonuses(current, values, count);
+            if (not sum) then return nil, err; end
+            for key, input in pairs(editorEntries) do input:SetText(sum[key] and tostring(sum[key]) or ""); end
+            if (kind == "consumable") then draft.addedConsumables[candidate.id] = true; end
+            editorConfirmed:SetChecked(false);
+            editorStatus:SetText(T("Bonuses added to the fields. Check for duplicates, then Apply."));
+            return true;
+        end);
+    end
+    button(editor, "Add essence", 22, 510, 180, function() addBonus("essence"); end);
+    consumableButton = button(editor, "Add consumable", 212, 140, 220, function() addBonus("consumable"); end);
+    local itemSourcesButton = button(editor, "Item sources", 475, 510, 180, function()
+        if (sourcesWindow) then sourcesWindow:SetVisible(false); end
+        sourcesWindow = StatCapsCompanion.OpenSources(draft.id, draft.name);
+    end);
 
     openEditor = function(side, slot, candidate)
         if (not context or not state) then return; end
         editingSide, editingSlot = side, slot;
         local extra = side == "extraOld" or side == "extraNew";
+        if (bonusWindow) then bonusWindow:SetVisible(false); end
+        if (sourcesWindow) then sourcesWindow:SetVisible(false); end
         if (extra) then
             draft = { name = T(side == "extraOld" and "Current set/essence bonuses" or "Planned set/essence bonuses"),
                 values = state[side], confirmed = state.extrasConfirmed };
@@ -452,11 +499,16 @@ function StatCapsLoadoutWindow.Open(getContext, getProfiles, getPlan, savePlan, 
         setAssignment:SetVisible(not extra and not state.manualSetTotals);
         setOnly:SetVisible(not extra and not state.manualSetTotals);
         extrasHelp:SetVisible(extra);
-        extrasHelp:SetText(T(state.manualSetTotals
-            and "Manual set totals replace ALL automatic set bonuses.\nEnter the total flat bonuses from every active set and socketed essence on this side. Enter zero if there are none. Apply saves and verifies this side."
-            or "Add only set bonuses missing from the automatic calculation.\nTo enter complete set totals instead, enable Manual set totals in the planner. Apply saves and verifies this side."));
+        consumableButton:SetVisible(extra);
+        itemSourcesButton:SetVisible(not extra);
+        itemSourcesButton:SetEnabled(not extra and draft.id ~= nil);
+        if (extra) then
+            extrasHelp:SetText(T("Include consumables on both sides: Current contains only buffs already in the snapshot; Planned contains their intended replacement. Unchanged buffs go on both sides or neither.\nSets: ")
+                .. T(state.manualSetTotals and "Enter complete set totals; automatic sets are disabled."
+                    or "Add only bonuses missing from automatic sets."));
+        end
         editorHelp:SetText(T(extra
-            and "Set and essence bonuses only, not item stats or character totals. Percentages, procs and skill effects are not numeric ratings."
+            and "Flat set, essence and consumable bonuses only, not item stats or character totals. Verify stacking and duration yourself. Percentages, procs and skill effects are not compared."
             or "Enter item bonuses only, not character totals.\nEssences go here or in Set/Essence bonuses, not both. Percentages and procs are not flat ratings."));
         fillEditor();
         editorStatus:SetText(T(extra and (state.manualSetTotals
@@ -482,6 +534,8 @@ function StatCapsLoadoutWindow.Open(getContext, getProfiles, getPlan, savePlan, 
     end
     button(editor, "Cancel", 320, 550, 150, function()
         resumeCalculation = false;
+        if (bonusWindow) then bonusWindow:SetVisible(false); end
+        if (sourcesWindow) then sourcesWindow:SetVisible(false); end
         editor:SetVisible(false); search:SetVisible(false);
         if (resumeSetReview) then resumeSetReview = false; openSetPrompt(); end
     end);
@@ -1051,6 +1105,7 @@ function StatCapsLoadoutWindow.Open(getContext, getProfiles, getPlan, savePlan, 
         local reset, err = StatCapsLoadouts.New(context.equipment);
         if (not reset) then status:SetText(T(err)); return; end
         state = reset;
+        win.HideChildren();
         state.manualSetTotals = true;
         win.state = state;
         manualTotals:SetChecked(state.manualSetTotals);
@@ -1097,7 +1152,7 @@ function StatCapsLoadoutWindow.Open(getContext, getProfiles, getPlan, savePlan, 
         setsChecked:SetVisible(false);
         win.lastResult = nil;
         targetButton:SetText(key and (T("Target: ") .. context.characterName) or T("Target: This character"));
-        for _, child in ipairs({ targets, report, editor, search, setsWindow, setPrompt }) do child:SetVisible(false); end
+        win.HideChildren();
         setsChecked:SetChecked(state.setsConfirmed);
         renderGear();
         status:SetText(T("Drop planned replacements; empty slots keep current equipment. Set bonuses are entered manually."));
@@ -1120,6 +1175,14 @@ function StatCapsLoadoutWindow.Open(getContext, getProfiles, getPlan, savePlan, 
     button(win, "Refresh equipment", 498, 42, 240, function() chooseTarget(selectedTarget); end);
     win.HideChildren = function()
         for _, child in ipairs({ report, editor, search, setsWindow, setPrompt, targets }) do child:SetVisible(false); end
+        if (bonusWindow) then bonusWindow:SetVisible(false); end
+        if (sourcesWindow) then sourcesWindow:SetVisible(false); end
+    end
+    editor.VisibleChanged = function()
+        if (not editor:IsVisible()) then
+            if (bonusWindow) then bonusWindow:SetVisible(false); end
+            if (sourcesWindow) then sourcesWindow:SetVisible(false); end
+        end
     end
     local visibilityChanged = win.VisibleChanged;
     win.VisibleChanged = function()

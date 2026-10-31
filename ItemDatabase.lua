@@ -13,7 +13,8 @@ StatCapsItemDatabase.Qualities = { "All qualities", "Common", "Uncommon", "Rare"
 local function matchesFilters(record, filters, level)
     if (not filters) then return true; end
     local restrictions = record[8] or {};
-    if (filters.className and restrictions.className and restrictions.className ~= filters.className) then return false; end
+    if (filters.className and restrictions.className
+        and not StatCapsLoadouts.AllowsClass(restrictions.className, filters.className)) then return false; end
     if (filters.atLevel and restrictions.minimum and restrictions.minimum > level) then return false; end
     -- Field 10 packs quality and armour type into one small numeric value.
     local metadata = record[10] or 0;
@@ -67,6 +68,8 @@ local function load()
         if (not scalingOk or type(StatCapsItemCurves) ~= "table") then
             return nil, "Database load failed: " .. tostring(scalingError) .. ". Enter bonuses manually.";
         end
+        local translated, translationError = StatCapsCompanion.Names();
+        if (not translated) then return nil, translationError; end
         for id, record in pairs(StatCapsItemRecords) do
           -- Legendary placeholders share one record across their source IDs; index it once.
           if (not recordIDs[record]) then
@@ -75,7 +78,8 @@ local function load()
             if (record[5]) then uniqueNames[record[1]] = record; end
             variantsByName[record[1]] = variantsByName[record[1]] or {};
             table.insert(variantsByName[record[1]], { id = id, record = record });
-            searchIndex[#searchIndex + 1] = { id = id, record = record, name = string.lower(record[1]) };
+            searchIndex[#searchIndex + 1] = { id = id, record = record,
+                name = StatCapsCompanion.Normalize(record[1]) };
           end
         end
         table.sort(searchIndex, function(a, b)
@@ -110,13 +114,14 @@ function StatCapsItemDatabase.Identity(id)
     if (record) then return { name = record[1], category = record[3], slot = record[6] }; end
 end
 
-function StatCapsItemDatabase.Values(record, itemLevel, characterLevel)
+function StatCapsItemDatabase.Values(record, itemLevel, characterLevel, curves)
     if (not record[7]) then
         local values = {};
         for key, value in pairs(record[4]) do values[key] = value; end
         return values, record[2];
     end
     local spec = record[7];
+    curves = curves or StatCapsItemCurves;
     local character = spec[4] == "character";
     local level = character and characterLevel or (not character and (itemLevel or record[2]));
     if (character and (type(level) ~= "number" or level % 1 ~= 0 or level < 1 or level > 160)) then
@@ -134,7 +139,7 @@ function StatCapsItemDatabase.Values(record, itemLevel, characterLevel)
             banded = true;
             for _, band in ipairs(stat[2]) do
                 if (level >= band[1] and level <= band[2]) then
-                    value = StatCapsItemDatabase.ProgressionValue(StatCapsItemCurves[band[3]], level);
+                    value = StatCapsItemDatabase.ProgressionValue(curves[band[3]], level);
                     banded = false;
                     break;
                 end
@@ -142,7 +147,7 @@ function StatCapsItemDatabase.Values(record, itemLevel, characterLevel)
         elseif (type(stat[2]) == "number") then
             value = stat[2];
         else
-            value = StatCapsItemDatabase.ProgressionValue(StatCapsItemCurves[stat[2]], level);
+            value = StatCapsItemDatabase.ProgressionValue(curves[stat[2]], level);
         end
         if (not banded) then
             if (not value or value ~= value or value < 0 or value == math.huge) then
@@ -159,7 +164,9 @@ end
 local function copyCandidate(id, record, itemLevel, characterLevel)
     local values, level = StatCapsItemDatabase.Values(record, itemLevel, characterLevel);
     if (not values) then return nil, level; end
-    return { id = id, name = record[1], level = level, category = record[3],
+    local displayName, err = StatCapsCompanion.Name(id, record[1]);
+    if (not displayName) then return nil, err; end
+    return { id = id, name = record[1], displayName = displayName, level = level, category = record[3],
         values = values, slot = record[6], scaling = record[7] ~= nil, legendary = record[9] == true,
         itemLevel = record[7] and record[7][4] == "character" and record[2] or level,
         restrictions = record[8],
@@ -183,7 +190,9 @@ function StatCapsItemDatabase.Search(query, page, itemLevel, characterLevel, slo
     end
     local ok, err = load();
     if (not ok) then return nil, 0, err; end
-    query = string.lower(query);
+    query = StatCapsCompanion.Normalize(query);
+    local translated, translationError = StatCapsCompanion.Names();
+    if (not translated) then return nil, 0, translationError; end
     local results, total = {}, 0;
     local first, last = (page - 1) * 30 + 1, page * 30;
     local index = searchIndex;
@@ -191,11 +200,13 @@ function StatCapsItemDatabase.Search(query, page, itemLevel, characterLevel, slo
     if (exact and StatCapsItemRecords[exact]) then
         -- Exact IDs include aliases that share another ID's search row.
         local record = StatCapsItemRecords[exact];
-        index = { { id = exact, record = record, name = string.lower(record[1]) } };
+        index = { { id = exact, record = record, name = StatCapsCompanion.Normalize(record[1]) } };
     end
     for _, candidate in ipairs(index) do
         local spec = candidate.record[7];
-        if ((candidate.name:find(query, 1, true) or tostring(candidate.id) == query)
+        local localName = translated[candidate.id];
+        if ((candidate.name:find(query, 1, true) or tostring(candidate.id) == query
+            or (localName and StatCapsCompanion.Normalize(localName):find(query, 1, true)))
             and (not slot or StatCapsLoadouts.SlotFits(slot, candidate.record[6]))
             and matchesFilters(candidate.record, filters, characterLevel)
             -- An entered item level hides item-level records that cannot exist at that level.
@@ -246,10 +257,23 @@ function StatCapsItemDatabase.Lookup(data, info, characterLevel)
     local record = idHex and StatCapsItemRecords[tonumber(idHex, 16)];
     local suggested = not idHex;
     if (suggested) then record = uniqueNames[info:GetName()]; end
+    local translatedCandidates;
+    if (suggested and not record and not variantsByName[info:GetName()]) then
+        local names, err = StatCapsCompanion.Names();
+        if (not names) then return nil, err; end
+        translatedCandidates = {};
+        for id, name in pairs(names) do
+            local base = StatCapsItemRecords[id];
+            if (name == info:GetName() and base and base[3] == info:GetCategory()) then
+                translatedCandidates[#translatedCandidates + 1] = { id = id, record = base };
+            end
+        end
+        if (#translatedCandidates == 1 and translatedCandidates[1].record[5]) then record = translatedCandidates[1].record; end
+    end
     if (not record) then
         if (suggested) then
             local variants = {};
-            for _, candidate in ipairs(variantsByName[info:GetName()] or {}) do
+            for _, candidate in ipairs(translatedCandidates or variantsByName[info:GetName()] or {}) do
                 local base = candidate.record;
                 if (base[3] == info:GetCategory()) then
                     local choice, err = copyCandidate(candidate.id, base, nil, characterLevel);
@@ -265,7 +289,9 @@ function StatCapsItemDatabase.Lookup(data, info, characterLevel)
         end
         return nil, "No unique supported base record (unknown item or variants). Enter bonuses manually.";
     end
-    if (record[1] ~= info:GetName() or record[3] ~= info:GetCategory()) then
+    local matched, nameError = StatCapsCompanion.MatchesName(idHex and tonumber(idHex, 16) or recordIDs[record], record[1], info:GetName());
+    if (matched == nil) then return nil, nameError; end
+    if (not matched or record[3] ~= info:GetCategory()) then
         return nil, "Database identity differs (language/update/variant). Enter bonuses manually.";
     end
     local values, valueError = StatCapsItemDatabase.Values(record, nil, characterLevel);
@@ -276,5 +302,5 @@ function StatCapsItemDatabase.Lookup(data, info, characterLevel)
             or ("Base item level " .. record[2] .. ". ")) ..
         "Check tooltip/essences and confirm.", record[6], nil,
         record[7] and record[7][4] == "character" and valueError or nil,
-        recordIDs[record], record[2], record[8];
+        idHex and tonumber(idHex, 16) or recordIDs[record], record[2], record[8];
 end

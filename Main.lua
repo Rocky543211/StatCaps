@@ -11,6 +11,7 @@ import "StatCaps.Recommendations";
 import "StatCaps.Scoring";
 import "StatCaps.Comparison";
 import "StatCaps.CharacterProfiles";
+import "StatCaps.Companion";
 import "StatCaps.ManualItems";
 import "StatCaps.ItemDatabase";
 import "StatCaps.ItemLinks";

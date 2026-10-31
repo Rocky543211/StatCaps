@@ -220,6 +220,7 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
     variantScroll:SetOrientation(Turbine.UI.Orientation.Vertical);
     variantList:SetVerticalScrollBar(variantScroll);
     picker:SetVisible(false);
+    local sourcesWindow, bonusWindow;
     local function renderCandidates(list, candidates, chooseItem, searching)
         list:ClearItems();
         for _, candidate in ipairs(candidates) do
@@ -238,7 +239,7 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
             local heading = T((candidate.characterLevel and "Character level " or
                 (candidate.scaling and "Calculated item level " or "Base level ")) .. candidate.level .. " / " .. (candidate.slot or "unknown slot") ..
                 " / ID " .. candidate.id);
-            if (searching) then heading = candidate.name .. "\n" .. heading; end
+            if (searching) then heading = (candidate.displayName or candidate.name) .. "\n" .. heading; end
             local textHeight = (#lines + (searching and 2 or 1)) * 22;
             row:SetSize(625, textHeight + 34);
             label(row, heading .. "\n" .. table.concat(lines, "\n"), 0, 0, 620, textHeight, true);
@@ -248,6 +249,13 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
             choose:SetSize(230, 24);
             choose:SetText(T((searching and "Use item " or "Use variant ") .. candidate.id));
             choose.Click = function() chooseItem(candidate); end
+            local sources = StatCapsTheme.Button();
+            sources:SetParent(row); sources:SetPosition(250, textHeight + 2); sources:SetSize(200, 24);
+            sources:SetText(T("Item sources"));
+            sources.Click = function()
+                if (sourcesWindow) then sourcesWindow:SetVisible(false); end
+                sourcesWindow = StatCapsCompanion.OpenSources(candidate.id, candidate.displayName or candidate.name);
+            end
             list:AddItem(row);
         end
     end
@@ -374,6 +382,8 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
             picker:SetVisible(false);
             if (profilePicker) then profilePicker:SetVisible(false); end
             if (searchWin) then searchWin:SetVisible(false); end
+            if (sourcesWindow) then sourcesWindow:SetVisible(false); end
+            if (bonusWindow) then bonusWindow:SetVisible(false); end
             virtueConfirm:SetChecked(false);
             confirmedVirtueSignature = nil;
         end
@@ -446,11 +456,11 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
     end
     local results = Turbine.UI.ListBox();
     results:SetParent(win);
-    results:SetPosition(15, 653);
+    results:SetPosition(15, 671);
     results:SetSize(640, 62);
     local scroll = Turbine.UI.Lotro.ScrollBar();
     scroll:SetParent(win);
-    scroll:SetPosition(659, 653);
+    scroll:SetPosition(659, 671);
     scroll:SetSize(12, 62);
     scroll:SetOrientation(Turbine.UI.Orientation.Vertical);
     results:SetVerticalScrollBar(scroll);
@@ -503,6 +513,8 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
             report:SetVisible(false);
             picker:SetVisible(false);
             if (searchWin) then searchWin:SetVisible(false); end
+            if (bonusWindow) then bonusWindow:SetVisible(false); end
+            if (sourcesWindow) then sourcesWindow:SetVisible(false); end
             result:SetText("Inputs changed. Analyze again to use the entered values.");
         end
         local function fillItem(info, data, keepOnFailure, isWorn, equipmentSlotHint, automatic, equipmentKey)
@@ -663,7 +675,7 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
                 slot.lookup = (candidate.scaling and "Calculated scaling item " or "Selected database item ") .. candidate.id .. ", level " .. candidate.level ..
                     " (instance NOT verified). Check tooltip and edit if needed.";
                 icon:SetItemInfo(nil);
-                name:SetText(candidate.name);
+                name:SetText(candidate.displayName or candidate.name);
                 for key, entry in pairs(slot.entries) do
                     entry:SetText(key == "WeaponDPS" and (candidate.values[key] and tostring(candidate.values[key]) or "") or tostring(candidate.values[key] or 0));
                 end
@@ -675,6 +687,26 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
             end);
         end
         slot.search = search;
+        local essence = StatCapsTheme.Button();
+        essence:SetParent(win); essence:SetPosition(x, index == 1 and 638 or 615); essence:SetSize(150, 26);
+        essence:SetText(T("Add essence"));
+        essence.Click = function()
+            local level = comparisonLevel();
+            if (not level) then result:SetText("Choose a supported character level first."); return; end
+            if (bonusWindow) then bonusWindow:SetVisible(false); end
+            bonusWindow = StatCapsCompanion.OpenBonuses("essence", level, function(values, count)
+                local text = {};
+                for key, input in pairs(slot.entries) do text[key] = input:GetText(); end
+                local parsed, err = StatCapsManual.Parse(text);
+                if (not parsed) then return nil, err; end
+                local sum;
+                sum, err = StatCapsCompanion.AddBonuses(parsed, values, count);
+                if (not sum) then return nil, err; end
+                for key, input in pairs(slot.entries) do input:SetText(sum[key] and tostring(sum[key]) or ""); end
+                invalidate();
+                return true;
+            end);
+        end
         if (index < 3) then
             local worn = StatCapsTheme.Button();
             worn:SetParent(win);
