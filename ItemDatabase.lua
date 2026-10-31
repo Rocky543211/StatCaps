@@ -131,14 +131,14 @@ function StatCapsItemDatabase.Values(record, itemLevel, characterLevel)
         else
             value = StatCapsItemDatabase.ProgressionValue(StatCapsItemCurves[stat[2]], level);
         end
-        if (banded) then
-            -- No band covers this item level: the stat is absent.
-        elseif (not value or value ~= value or value < 0 or value == math.huge) then
-            return nil, "No supported progression value at this item level. Enter bonuses manually.";
+        if (not banded) then
+            if (not value or value ~= value or value < 0 or value == math.huge) then
+                return nil, "No supported progression value at this item level. Enter bonuses manually.";
+            end
+            local displayed = stat[1] == "WeaponDPS" and math.floor(value * 10 + 0.5) / 10
+                or math.floor(value + (integerStats[stat[1]] and 0 or 0.5));
+            values[stat[1]] = (values[stat[1]] or 0) + displayed;
         end
-        local displayed = stat[1] == "WeaponDPS" and math.floor(value * 10 + 0.5) / 10
-            or math.floor(value + (integerStats[stat[1]] and 0 or 0.5));
-        values[stat[1]] = (values[stat[1]] or 0) + displayed;
     end
     return values, level;
 end
