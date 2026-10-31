@@ -252,9 +252,23 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
         end
     end
     local searchWin, searchEntry, searchLevel, searchList, searchStatus, previous, nextPage;
+    local targetFilter, armourFilter, qualityFilter;
     local searchTarget, searchPage, searchQuery = nil, 1, "";
     local function searchItems()
-        local candidates, total, err = StatCapsItemDatabase.SearchInput(searchQuery, searchPage, searchLevel:GetText(), comparisonLevel());
+        local filters = { armour = armourFilter.choice > 1 and armourFilter.choice - 1 or nil,
+            quality = qualityFilter.choice > 1 and qualityFilter.choice - 1 or nil };
+        if (targetFilter:IsChecked()) then
+            local context, err = getContext(selectedProfileKey);
+            if (not context) then
+                searchStatus:SetText(T(err));
+                searchList:ClearItems();
+                previous:SetEnabled(false);
+                nextPage:SetEnabled(false);
+                return;
+            end
+            filters.className, filters.atLevel = context.className, true;
+        end
+        local candidates, total, err = StatCapsItemDatabase.SearchInput(searchQuery, searchPage, searchLevel:GetText(), comparisonLevel(), nil, filters);
         if (not candidates or total == 0) then
             StatCapsManual.LastItemIssue = err or "No supported items found. Try a shorter name, or enter bonuses manually.";
         end
@@ -302,15 +316,15 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
             searchLevel:SetSize(85, 24);
             searchLevel:SetMultiline(false);
             searchLevel:SetFont(Turbine.UI.Lotro.Font.Verdana14);
-            searchStatus = label(searchWin, "", 20, 150, 650, 40);
+            searchStatus = label(searchWin, "", 20, 181, 650, 40);
             searchList = Turbine.UI.ListBox();
             searchList:SetParent(searchWin);
-            searchList:SetPosition(20, 195);
-            searchList:SetSize(630, 265);
+            searchList:SetPosition(20, 226);
+            searchList:SetSize(630, 234);
             local searchScroll = Turbine.UI.Lotro.ScrollBar();
             searchScroll:SetParent(searchWin);
-            searchScroll:SetPosition(654, 195);
-            searchScroll:SetSize(12, 265);
+            searchScroll:SetPosition(654, 226);
+            searchScroll:SetSize(12, 234);
             searchScroll:SetOrientation(Turbine.UI.Orientation.Vertical);
             searchList:SetVerticalScrollBar(searchScroll);
             previous = StatCapsTheme.Button();
@@ -332,6 +346,17 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
                 searchStatus:SetText(T("Click Find items to search the local database."));
             end
             searchLevel.TextChanged = searchEntry.TextChanged;
+            targetFilter = Turbine.UI.Lotro.CheckBox();
+            targetFilter:SetParent(searchWin);
+            targetFilter:SetPosition(20, 151);
+            targetFilter:SetSize(225, 26);
+            targetFilter:SetText(T("Target class + level"));
+            targetFilter:SetChecked(false);
+            targetFilter.CheckedChanged = searchEntry.TextChanged;
+            armourFilter = StatCapsTheme.ChoiceButton(searchWin, "Armour", StatCapsItemDatabase.ArmourTypes,
+                247, 151, 190, searchEntry.TextChanged);
+            qualityFilter = StatCapsTheme.ChoiceButton(searchWin, "Quality", StatCapsItemDatabase.Qualities,
+                445, 151, 220, searchEntry.TextChanged);
         end
         searchTarget = chooseItem;
         searchWin:SetText(T("Stat Caps - Item search / " .. title));

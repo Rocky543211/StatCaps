@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>StatCaps - Import virtue ranks</title>
+<style>
+  :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #101a20; color: #eee9dd; }
+  body { max-width: 760px; margin: 0 auto; padding: clamp(20px, 5vw, 48px); line-height: 1.55; }
+  h1 { font-size: 1.8rem; margin: 0 0 12px; color: #ebd299; }
+  h2 { font-size: 1.1rem; margin-top: 32px; }
+  p { margin: 12px 0; }
+  code { color: #ebd299; }
+  input, button, textarea { font: inherit; }
+  input[type=file] { display: block; max-width: 100%; margin: 12px 0; }
+  button, input::file-selector-button { background: #31434d; color: #fff; border: 1px solid #829aa5; padding: 9px 14px; cursor: pointer; }
+  button:hover, input::file-selector-button:hover { background: #425d6a; }
+  button:disabled { opacity: .55; cursor: default; }
+  :focus-visible { outline: 3px solid #ebd299; outline-offset: 3px; }
+  textarea { box-sizing: border-box; width: 100%; min-height: 330px; padding: 14px; background: #0b1217; color: #eee9dd; border: 1px solid #829aa5; }
+  #status { min-height: 3em; overflow-wrap: anywhere; }
+  #status[data-error=true] { color: #ffbdb5; }
+  footer { margin-top: 32px; color: #c3cdd2; font-size: .9rem; }
+</style>
+</head>
+<body>
+<h1>Import virtue ranks into StatCaps</h1>
+<p>This helper runs locally in your browser on Windows and Linux. It does not upload files, contact a server or modify your saved plugin data.</p>
+<h2>Select your Companion character configuration</h2>
+<p>In LOTRO Companion, import your character with <strong>Current Gear</strong> selected. Choose the XML for that imported configuration in Companion's character data folder, not <code>summary.xml</code>, <code>deedsStatus.xml</code> or the separate virtue-XP status file.</p>
+<label for="source">Character configuration XML file</label>
+<input id="source" type="file" accept=".xml,text/xml,application/xml">
+<p id="status" role="status" aria-live="polite">No file selected.</p>
+<h2>Copy and review in game</h2>
+<p>Open <strong>Virtues → All virtue ranks → Import from Companion</strong> in StatCaps. Paste the output, select <strong>Review imported ranks</strong>, check the character and values, then select <strong>Save all virtue ranks</strong>.</p>
+<label for="output">Import text</label>
+<textarea id="output" readonly spellcheck="false"></textarea>
+<p><button id="copy" type="button" disabled>Copy import text</button></p>
+<footer>Imports all 21 earned ranks, including untrained ranks of zero. Does not change your equipped virtue selection. A simulated or old Companion configuration may not match your current character.</footer>
+<script>
+"use strict";
+const virtues = [
+  ["CHARITY", "Charity", "1879072873"], ["COMPASSION", "Compassion", "1879072874"],
+  ["CONFIDENCE", "Confidence", "1879072875"], ["DETERMINATION", "Determination", "1879072876"],
+  ["DISCIPLINE", "Discipline", "1879072877"], ["EMPATHY", "Empathy", "1879072878"],
+  ["FIDELITY", "Fidelity", "1879072879"], ["FORTITUDE", "Fortitude", "1879072880"],
+  ["HONESTY", "Honesty", "1879072881"], ["HONOUR", "Honour", "1879072882"],
+  ["IDEALISM", "Idealism", "1879072883"], ["INNOCENCE", "Innocence", "1879072888"],
+  ["JUSTICE", "Justice", "1879072884"], ["LOYALTY", "Loyalty", "1879072885"],
+  ["MERCY", "Mercy", "1879072886"], ["PATIENCE", "Patience", "1879072887"],
+  ["TOLERANCE", "Tolerance", "1879072889"], ["VALOUR", "Valour", "1879072890"],
+  ["WISDOM", "Wisdom", "1879072891"], ["WIT", "Wit", "1879388819"], ["ZEAL", "Zeal", "1879072892"]
+];
+function convertConfiguration(xml) {
+  if (/<!DOCTYPE|<!ENTITY/i.test(xml)) throw new Error("XML declarations with DTDs or entities are not supported.");
+  const doc = new DOMParser().parseFromString(xml, "application/xml");
+  if (doc.querySelector("parsererror")) throw new Error("Invalid XML. Select the original Companion configuration file.");
+  const root = doc.documentElement;
+  if (root.tagName !== "character") throw new Error("This is not a Companion character configuration XML.");
+  const name = root.getAttribute("name");
+  if (!name || /[\r\n]/.test(name)) throw new Error("The configuration is missing a valid character name.");
+  const groups = Array.from(root.children).filter(node => node.tagName === "virtues");
+  if (groups.length !== 1) throw new Error("No complete virtue configuration found. Import with Current Gear selected.");
+  const ranks = new Map();
+  for (const node of groups[0].children) {
+    if (node.tagName !== "virtue") throw new Error("Unexpected virtue data. Select a supported Companion configuration.");
+    const id = node.getAttribute("id");
+    const virtue = virtues.find(entry => entry[0] === id || entry[2] === id);
+    if (!virtue) throw new Error("Unknown virtue identifier: " + id);
+    if (ranks.has(virtue[1])) throw new Error("Duplicate virtue: " + virtue[1]);
+    const raw = node.getAttribute("rank");
+    if (!raw || !/^\d+$/.test(raw) || Number(raw) > 100) throw new Error("Invalid rank for " + virtue[1] + ". Expected 0-100.");
+    ranks.set(virtue[1], Number(raw));
+  }
+  if (ranks.size !== virtues.length) throw new Error("The file must contain all 21 ranks. Missing ranks are not assumed to be zero.");
+  return { name, text: ["STATCAPS-VIRTUES-1", "Character: " + name,
+    ...virtues.map(entry => entry[1] + "=" + ranks.get(entry[1]))].join("\n") };
+}
+const source = document.getElementById("source");
+const output = document.getElementById("output");
+const status = document.getElementById("status");
+const copy = document.getElementById("copy");
+let revision = 0;
+function showStatus(message, error = false) {
+  status.textContent = message;
+  status.dataset.error = String(error);
+}
+source.addEventListener("change", async () => {
+  const current = ++revision;
+  output.value = "";
+  copy.disabled = true;
+  const file = source.files[0];
+  if (!file) { showStatus("No file selected."); return; }
+  if (file.size > 2 * 1024 * 1024) { showStatus("File is too large. Choose a character configuration XML under 2 MB.", true); return; }
+  showStatus("Reading configuration...");
+  try {
+    const xml = await file.text();
+    if (current !== revision) return;
+    const result = convertConfiguration(xml);
+    output.value = result.text;
+    copy.disabled = false;
+    showStatus("Ready: " + result.name + " - 21 virtue ranks. Verify this is the intended character before saving in game.");
+  } catch (error) {
+    if (current === revision) showStatus(error.message || "The file could not be read.", true);
+  }
+});
+copy.addEventListener("click", async () => {
+  try {
+    if (!navigator.clipboard) throw new Error("Clipboard access is unavailable.");
+    await navigator.clipboard.writeText(output.value);
+    showStatus("Copied. Paste into StatCaps, review the ranks and save.");
+  } catch (error) {
+    output.focus();
+    output.select();
+    showStatus("Automatic copying is unavailable in this browser. The text is selected: press Ctrl+C to copy it.", true);
+  }
+});
+</script>
+</body>
+</html>

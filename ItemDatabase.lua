@@ -7,6 +7,19 @@ local recordIDs = {};
 local integerStats = {
     Might = true, Agility = true, Vitality = true, Will = true, Fate = true, Armour = true
 };
+StatCapsItemDatabase.ArmourTypes = { "All armour", "Light", "Medium", "Heavy", "Shield", "Heavy shield", "Warden shield" };
+StatCapsItemDatabase.Qualities = { "All qualities", "Common", "Uncommon", "Rare", "Incomparable", "Legendary" };
+
+local function matchesFilters(record, filters, level)
+    if (not filters) then return true; end
+    local restrictions = record[8] or {};
+    if (filters.className and restrictions.className and restrictions.className ~= filters.className) then return false; end
+    if (filters.atLevel and restrictions.minimum and restrictions.minimum > level) then return false; end
+    -- Field 10 packs quality and armour type into one small numeric value.
+    local metadata = record[10] or 0;
+    return (not filters.armour or metadata % 8 == filters.armour)
+        and (not filters.quality or math.floor(metadata / 8) == filters.quality);
+end
 
 function StatCapsItemDatabase.Equipped(player)
     local ok, items = pcall(function()
@@ -153,7 +166,7 @@ local function copyCandidate(id, record, itemLevel, characterLevel)
         characterLevel = record[7] and record[7][4] == "character" and level or nil };
 end
 
-function StatCapsItemDatabase.Search(query, page, itemLevel, characterLevel, slot)
+function StatCapsItemDatabase.Search(query, page, itemLevel, characterLevel, slot, filters)
     query = type(query) == "string" and query:match("^%s*(.-)%s*$") or "";
     if (#query < 2) then return nil, 0, "Enter at least 2 characters of an item name, or its numeric ID."; end
     if (itemLevel ~= nil and (type(itemLevel) ~= "number" or itemLevel % 1 ~= 0 or itemLevel < 1 or itemLevel > 999)) then
@@ -161,6 +174,13 @@ function StatCapsItemDatabase.Search(query, page, itemLevel, characterLevel, slo
     end
     page = tonumber(page) or 1;
     if (page < 1 or page % 1 ~= 0) then return nil, 0, "Invalid search page."; end
+    if (filters ~= nil and (type(filters) ~= "table"
+        or (filters.atLevel and (type(characterLevel) ~= "number" or characterLevel % 1 ~= 0 or characterLevel < 1))
+        or (filters.className ~= nil and type(filters.className) ~= "string")
+        or (filters.armour ~= nil and (type(filters.armour) ~= "number" or filters.armour % 1 ~= 0 or filters.armour < 1 or filters.armour > 6))
+        or (filters.quality ~= nil and (type(filters.quality) ~= "number" or filters.quality % 1 ~= 0 or filters.quality < 1 or filters.quality > 5)))) then
+        return nil, 0, "Invalid item filters or target character level.";
+    end
     local ok, err = load();
     if (not ok) then return nil, 0, err; end
     query = string.lower(query);
@@ -177,6 +197,7 @@ function StatCapsItemDatabase.Search(query, page, itemLevel, characterLevel, slo
         local spec = candidate.record[7];
         if ((candidate.name:find(query, 1, true) or tostring(candidate.id) == query)
             and (not slot or StatCapsLoadouts.SlotFits(slot, candidate.record[6]))
+            and matchesFilters(candidate.record, filters, characterLevel)
             -- An entered item level hides item-level records that cannot exist at that level.
             and not (itemLevel and spec and spec[4] ~= "character" and (itemLevel < spec[1] or itemLevel > spec[2]))) then
             total = total + 1;
@@ -199,7 +220,7 @@ function StatCapsItemDatabase.Rescale(id, itemLevel)
     return StatCapsItemDatabase.Values(record, itemLevel);
 end
 
-function StatCapsItemDatabase.SearchInput(query, page, levelText, characterLevel, slot)
+function StatCapsItemDatabase.SearchInput(query, page, levelText, characterLevel, slot, filters)
     query = type(query) == "string" and query:match("^%s*(.-)%s*$") or "";
     levelText = type(levelText) == "string" and levelText:match("^%s*(.-)%s*$") or "";
     local level = levelText ~= "" and tonumber(levelText) or nil;
@@ -214,7 +235,7 @@ function StatCapsItemDatabase.SearchInput(query, page, levelText, characterLevel
         end
         query, level = tostring(link.id), link.level or level;
     end
-    return StatCapsItemDatabase.Search(query, page, level, characterLevel, slot);
+    return StatCapsItemDatabase.Search(query, page, level, characterLevel, slot, filters);
 end
 
 function StatCapsItemDatabase.Lookup(data, info, characterLevel)

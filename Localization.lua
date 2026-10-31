@@ -2,6 +2,27 @@ StatCapsLocalization = {};
 
 local translations = {
     de = {
+        ["Target class + level"] = "Zielklasse + Stufe",
+        ["All armour"] = "Alle Rüstungstypen",
+        ["All qualities"] = "Alle Qualitäten",
+        ["Quality"] = "Qualität",
+        ["Common"] = "Gewöhnlich",
+        ["Uncommon"] = "Ungewöhnlich",
+        ["Rare"] = "Selten",
+        ["Incomparable"] = "Unvergleichlich",
+        ["Legendary"] = "Legendär",
+        ["Heavy shield"] = "Schwerer Schild",
+        ["Warden shield"] = "Hüterschild",
+        ["Invalid item filters or target character level."] = "Ungültige Itemfilter oder Ziel-Charakterstufe.",
+        ["Stat Caps - Import virtue ranks"] = "StatCaps - Tugendränge importieren",
+        ["Import from Companion"] = "Aus Companion importieren",
+        ["Review imported ranks"] = "Importierte Ränge prüfen",
+        ["Imported character: "] = "Importierter Charakter: ",
+        ["Check this is the correct character, then Save all virtue ranks."] = "Charakter prüfen, dann alle Tugendränge speichern.",
+        ["Invalid virtue import. Paste the helper's complete output."] = "Ungültiger Tugendimport. Die vollständige Ausgabe des Helfers einfügen.",
+        ["Invalid or duplicate virtue in imported data."] = "Ungültige oder doppelte Tugend in den Importdaten.",
+        ["Open ImportVirtues.html in your browser and select a Companion character configuration XML.\nPaste its output below. Only earned ranks are imported; equipped virtues stay unchanged."] =
+            "ImportVirtues.html im Browser öffnen und eine Companion-Charakterkonfiguration (XML) wählen.\nAusgabe unten einfügen. Nur erreichte Ränge werden importiert; aktive Tugenden bleiben unverändert.",
         ["Enter item bonuses only, not character totals.\nEssences go here or in Set/Essence bonuses, not both. Percentages and procs are not flat ratings."] =
             "Nur Itemboni eingeben, keine Charakterwerte.\nEssenzen hier oder bei Set-/Essenzboni eingeben, nicht beides. Prozente und Procs sind keine Wertungen.",
         ["Current and planned set totals are entered manually.\nOnly flat numeric bonuses are included in the comparison."] =
@@ -794,6 +815,27 @@ local translations = {
             "StatCaps geladen. Klicke auf das SC-Symbol oder gib /statcaps ein, um das Fenster ein-/auszublenden."
     },
     fr = {
+        ["Target class + level"] = "Classe + niveau cibles",
+        ["All armour"] = "Toutes les armures",
+        ["All qualities"] = "Toutes les qualités",
+        ["Quality"] = "Qualité",
+        ["Common"] = "Commun",
+        ["Uncommon"] = "Peu commun",
+        ["Rare"] = "Rare",
+        ["Incomparable"] = "Incomparable",
+        ["Legendary"] = "Légendaire",
+        ["Heavy shield"] = "Bouclier lourd",
+        ["Warden shield"] = "Bouclier de sentinelle",
+        ["Invalid item filters or target character level."] = "Filtres d'objet ou niveau du personnage cible invalides.",
+        ["Stat Caps - Import virtue ranks"] = "StatCaps - Importer les rangs de vertus",
+        ["Import from Companion"] = "Importer de Companion",
+        ["Review imported ranks"] = "Vérifier les rangs importés",
+        ["Imported character: "] = "Personnage importé : ",
+        ["Check this is the correct character, then Save all virtue ranks."] = "Vérifiez le personnage, puis enregistrez tous les rangs de vertus.",
+        ["Invalid virtue import. Paste the helper's complete output."] = "Import de vertus invalide. Collez la sortie complète de l'assistant.",
+        ["Invalid or duplicate virtue in imported data."] = "Vertu invalide ou en double dans les données importées.",
+        ["Open ImportVirtues.html in your browser and select a Companion character configuration XML.\nPaste its output below. Only earned ranks are imported; equipped virtues stay unchanged."] =
+            "Ouvrez ImportVirtues.html dans votre navigateur et choisissez une configuration de personnage Companion (XML).\nCollez sa sortie ci-dessous. Seuls les rangs acquis sont importés ; les vertus équipées restent inchangées.",
         ["Enter item bonuses only, not character totals.\nEssences go here or in Set/Essence bonuses, not both. Percentages and procs are not flat ratings."] =
             "Saisissez uniquement les bonus de l'objet, pas les totaux du personnage.\nEssences ici ou dans Bonus de set/essence, pas les deux. Pourcentages et procs exclus des valeurs fixes.",
         ["Current and planned set totals are entered manually.\nOnly flat numeric bonuses are included in the comparison."] =

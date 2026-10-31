@@ -299,15 +299,21 @@ function StatCapsLoadoutWindow.Open(getContext, getProfiles, getPlan, savePlan, 
     end
 
     local query = entry(search, 22, 45, 470);
-    local searchStatus = label(search, "", 22, 82, 633, 42);
-    local searchList = list(search, 22, 130, 633, 274);
+    local searchStatus = label(search, "", 22, 115, 633, 42);
+    local searchList = list(search, 22, 163, 633, 241);
     local previous, nextPage;
+    local targetFilter, armourFilter, qualityFilter;
     local function searchItems()
         searchList:ClearItems();
         local results, total, err;
         if (searchMode == "items") then
             results, total, err = StatCapsItemDatabase.SearchInput(query:GetText(), searchPage, itemLevel:GetText(),
-                context.level, editingSlot[3]);
+                context.level, editingSlot[3], {
+                    className = targetFilter:IsChecked() and context.className or nil,
+                    atLevel = targetFilter:IsChecked(),
+                    armour = armourFilter.choice > 1 and armourFilter.choice - 1 or nil,
+                    quality = qualityFilter.choice > 1 and qualityFilter.choice - 1 or nil
+                });
         elseif (searchMode == "variants") then
             results, total = {}, #searchVariants;
             for index = (searchPage - 1) * 30 + 1, math.min(searchPage * 30, total) do
@@ -368,10 +374,22 @@ function StatCapsLoadoutWindow.Open(getContext, getProfiles, getPlan, savePlan, 
         nextPage:SetEnabled(false);
         searchStatus:SetText(T("Enter a name, numeric ID or item link, then click Find."));
     end
+    targetFilter = Turbine.UI.Lotro.CheckBox();
+    targetFilter:SetParent(search);
+    targetFilter:SetPosition(22, 82);
+    targetFilter:SetSize(225, 26);
+    targetFilter:SetText(T("Target class + level"));
+    targetFilter:SetChecked(false);
+    targetFilter.CheckedChanged = query.TextChanged;
+    armourFilter = StatCapsTheme.ChoiceButton(search, "Armour", StatCapsItemDatabase.ArmourTypes,
+        249, 82, 190, query.TextChanged);
+    qualityFilter = StatCapsTheme.ChoiceButton(search, "Quality", StatCapsItemDatabase.Qualities,
+        447, 82, 208, query.TextChanged);
     openSearch = function(mode, variants)
         searchMode, searchPage = mode, 1;
         searchVariants = variants;
         query:SetEnabled(mode ~= "variants");
+        for _, control in ipairs({ targetFilter, armourFilter, qualityFilter }) do control:SetEnabled(mode == "items"); end
         query:SetText("");
         searchList:ClearItems();
         previous:SetEnabled(false);

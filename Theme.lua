@@ -73,6 +73,24 @@ function StatCapsTheme.Button()
     return button;
 end
 
+function StatCapsTheme.ChoiceButton(parent, title, choices, x, y, width, changed)
+    local button = StatCapsTheme.Button();
+    button:SetParent(parent);
+    button:SetPosition(x, y);
+    button:SetSize(width, 26);
+    button.choice = 1;
+    local function paint()
+        button:SetText(StatCapsLocalization.Text(title) .. ": " .. StatCapsLocalization.Text(choices[button.choice]));
+    end
+    button.Click = function()
+        button.choice = button.choice % #choices + 1;
+        paint();
+        changed();
+    end
+    paint();
+    return button;
+end
+
 function StatCapsTheme.Window()
     local win = Turbine.UI.Window();
     win:SetBackColor(Turbine.UI.Color(0.045, 0.055, 0.065));

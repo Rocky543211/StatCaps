@@ -30,6 +30,29 @@ function StatCapsVirtues.ValidateRanks(ranks)
     return normalized;
 end
 
+function StatCapsVirtues.ParseImport(text)
+    if (type(text) ~= "string" or #text > 8192) then return nil, "Invalid virtue import. Paste the helper's complete output."; end
+    local lines = {};
+    for line in (text:gsub("\r\n", "\n") .. "\n"):gmatch("(.-)\n") do lines[#lines + 1] = line; end
+    if (lines[1] ~= "STATCAPS-VIRTUES-1" or not lines[2] or not lines[2]:match("^Character: .+")) then
+        return nil, "Invalid virtue import. Paste the helper's complete output.";
+    end
+    local character = lines[2]:sub(12);
+    local ranks = {};
+    for i = 3, #lines do
+        if (lines[i] ~= "") then
+            local name, rank = lines[i]:match("^([A-Za-z]+)=(%d+)$");
+            if (not name or not StatCapsVirtues.Find(name) or ranks[name] ~= nil) then
+                return nil, "Invalid or duplicate virtue in imported data.";
+            end
+            ranks[name] = tonumber(rank);
+        end
+    end
+    local normalized, err = StatCapsVirtues.ValidateRanks(ranks);
+    if (not normalized) then return nil, err; end
+    return normalized, character;
+end
+
 -- Deliberately accept complete rank notifications, not XP awards or player chat.
 function StatCapsVirtues.ParseRankMessage(message)
     if (type(message) ~= "string") then return; end

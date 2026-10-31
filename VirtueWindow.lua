@@ -222,6 +222,50 @@ function StatCapsVirtueWindow.Open(getContext, savedSelection, saveSelection, tr
             rankWindow:Activate();
         end
         rankWindow:SetVisible(false);
+        local importWindow = StatCapsTheme.Window();
+        importWindow:SetText(T("Stat Caps - Import virtue ranks"));
+        importWindow:SetSize(650, 590);
+        StatCapsTheme.Panel(importWindow, 650, 590);
+        importWindow:SetPosition(math.max(0, (width - 650) / 2), math.max(0, (height - 590) / 2));
+        label(importWindow, "Open ImportVirtues.html in your browser and select a Companion character configuration XML.\nPaste its output below. Only earned ranks are imported; equipped virtues stay unchanged.",
+            20, 40, 610, 75);
+        local importText = Turbine.UI.Lotro.TextBox();
+        importText:SetParent(importWindow);
+        importText:SetPosition(20, 125);
+        importText:SetSize(610, 335);
+        importText:SetMultiline(true);
+        importText:SetFont(Turbine.UI.Lotro.Font.Verdana14);
+        importText:SetBackColor(Turbine.UI.Color(0.1, 0.12, 0.16));
+        importText:SetForeColor(Turbine.UI.Color(1, 1, 1));
+        local importStatus = label(importWindow, "", 20, 468, 610, 66);
+        local preview = StatCapsTheme.Button();
+        preview:SetParent(importWindow);
+        preview:SetPosition(20, 545);
+        preview:SetSize(290, 26);
+        preview:SetText(T("Review imported ranks"));
+        preview.Click = function()
+            local ranks, character = StatCapsVirtues.ParseImport(importText:GetText());
+            if (not ranks) then importStatus:SetText(T(character)); return; end
+            for name, input in pairs(rankInputs) do input:SetText(tostring(ranks[name])); end
+            rankStatus:SetText(T("Imported character: ") .. character .. "\n" ..
+                T("Check this is the correct character, then Save all virtue ranks."));
+            importWindow:SetVisible(false);
+        end
+        local importButton = StatCapsTheme.Button();
+        importButton:SetParent(rankWindow);
+        importButton:SetPosition(225, 545);
+        importButton:SetSize(195, 26);
+        importButton:SetText(T("Import from Companion"));
+        importButton.Click = function()
+            importText:SetText("");
+            importStatus:SetText("");
+            importWindow:SetVisible(true);
+            importWindow:Activate();
+        end
+        rankWindow.VisibleChanged = function()
+            if (not rankWindow:IsVisible()) then importWindow:SetVisible(false); end
+        end
+        importWindow:SetVisible(false);
     end
     refresh = function()
         local context, err = getContext();
