@@ -107,6 +107,10 @@ function StatCapsItemDatabase.ProgressionValue(curve, level)
     end
 end
 
+function StatCapsItemDatabase.Load()
+    return load();
+end
+
 function StatCapsItemDatabase.Identity(id)
     local ok, err = load();
     if (not ok) then return nil, err; end
@@ -173,8 +177,33 @@ local function copyCandidate(id, record, itemLevel, characterLevel)
         characterLevel = record[7] and record[7][4] == "character" and level or nil };
 end
 
+function StatCapsItemDatabase.RelevelCandidates(candidates, levelText, characterLevel)
+    levelText = type(levelText) == "string" and levelText:match("^%s*(.-)%s*$") or "";
+    local level = levelText ~= "" and tonumber(levelText) or nil;
+    if (levelText ~= "" and (not level or level % 1 ~= 0 or level < 1 or level > 999)) then
+        return nil, "Enter a whole item level from 1 to 999, or leave it blank.";
+    end
+    local ok, err = load();
+    if (not ok) then return nil, err; end
+    local results = {};
+    for _, candidate in ipairs(candidates) do
+        local record = StatCapsItemRecords[candidate.id];
+        if (not record) then return nil, "No unique supported base record (unknown item or variants). Enter bonuses manually."; end
+        local spec = record[7];
+        if (not (level and spec and spec[4] ~= "character" and (level < spec[1] or level > spec[2]))) then
+            local choice;
+            choice, err = copyCandidate(candidate.id, record, level, characterLevel);
+            if (not choice) then return nil, err; end
+            results[#results + 1] = choice;
+        end
+    end
+    if (#results == 0) then return nil, "Item level is outside this item's supported scaling range."; end
+    return results;
+end
+
 function StatCapsItemDatabase.Search(query, page, itemLevel, characterLevel, slot, filters)
     query = type(query) == "string" and query:match("^%s*(.-)%s*$") or "";
+    query = (query:match("^%[(.*)%]$") or query):match("^%s*(.-)%s*$");
     if (#query < 2) then return nil, 0, "Enter at least 2 characters of an item name, or its numeric ID."; end
     if (itemLevel ~= nil and (type(itemLevel) ~= "number" or itemLevel % 1 ~= 0 or itemLevel < 1 or itemLevel > 999)) then
         return nil, 0, "Enter a whole item level from 1 to 999, or leave it blank.";

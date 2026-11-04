@@ -12,6 +12,8 @@ import "StatCaps.Scoring";
 import "StatCaps.Comparison";
 import "StatCaps.CharacterProfiles";
 import "StatCaps.Companion";
+import "StatCaps.BestGear";
+import "StatCaps.BestGearWindow";
 import "StatCaps.ManualItems";
 import "StatCaps.ItemDatabase";
 import "StatCaps.ItemLinks";
@@ -386,6 +388,41 @@ local function LoadoutContext(profileKey)
     return context;
 end
 
+local function ItemComparisonContext(profileKey)
+    local context, err = ComparisonContext(profileKey);
+    if (not context) then return nil, err; end
+    if (loadoutLoadError) then return nil, "Saved loadout plans could not be loaded. Reload StatCaps before saving."; end
+    local key = profileKey or playerName;
+    local plan = loadoutWin and loadoutWin.GetCurrentPlan(key) or loadoutPlans[key];
+    context.reviewedEquipmentTrace = "Variant reuse v3; saved plan: " .. tostring(plan ~= nil);
+    if (not plan) then return context; end
+    local equipmentContext;
+    equipmentContext, err = LoadoutContext(profileKey);
+    if (not equipmentContext) then return nil, err; end
+    local reviewed;
+    reviewed, err = StatCapsLoadouts.ReviewedEquipment(equipmentContext.equipment, plan, context.level);
+    if (not reviewed) then return nil, err; end
+    context.reviewedEquipment = reviewed;
+    local trace = { context.reviewedEquipmentTrace };
+    for _, definition in ipairs(StatCapsLoadouts.Slots) do
+        local key = definition[1];
+        local item = equipmentContext.equipment[key];
+        local stored = plan.original and plan.original[key];
+        if (item or stored) then
+            trace[#trace + 1] = key .. ": current=" .. tostring(item and item.name)
+                .. "; saved=" .. tostring(stored and stored.name)
+                .. "; confirmed=" .. tostring(stored and stored.confirmed)
+                .. "; reviewed=" .. tostring(stored and stored.reviewed)
+                .. "; ID=" .. tostring(stored and stored.id)
+                .. "; category=" .. tostring(item and item.category) .. "/" .. tostring(stored and stored.category)
+                .. "; scaling=" .. tostring(item and item.characterLevel) .. "/" .. tostring(stored and stored.characterLevel)
+                .. "; restored=" .. tostring(reviewed[key] ~= nil);
+        end
+    end
+    context.reviewedEquipmentTrace = table.concat(trace, "\n");
+    return context;
+end
+
 local function OpenLoadouts(profileKey, selectCurrent)
     if (loadoutWin) then
         if (profileKey or selectCurrent) then loadoutWin.SelectTarget(profileKey); end
@@ -417,7 +454,7 @@ manualButton.Click = function()
         manualWin:Activate();
         return;
     end
-    manualWin = StatCapsManual.Open(ComparisonContext, SavedProfiles, SaveCharacterItem,
+    manualWin = StatCapsManual.Open(ItemComparisonContext, SavedProfiles, SaveCharacterItem,
         function(key) OpenLoadouts(key, true); end);
 end
 nextButton.Click = function()
@@ -1061,6 +1098,7 @@ local function PrintDiagnostics()
     end);
     line("CalcStat", T(hasCalcStat and "Available" or "Unavailable"));
     line("Last item lookup/link issue", T(StatCapsManual.LastItemIssue or "None recorded this session"));
+    line("Last equipped variant reuse", StatCapsManual.LastVariantReuseIssue or "Variant reuse v3: no misses recorded.");
 end
 function command:GetShortHelp()
     return T("/statcaps [show|hide|virtuelog] - toggle window; virtuelog toggles advancement diagnostics");

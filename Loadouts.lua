@@ -49,6 +49,7 @@ function StatCapsLoadouts.CopyItem(item)
     return {
         name = item.name, slot = item.slot, category = item.category, icon = item.icon, iconLayers = copy(item.iconLayers), values = copy(item.values),
         confirmed = item.confirmed == true, id = item.id, itemLevel = item.itemLevel,
+        reviewed = item.reviewed == true, suggested = item.suggested == true,
         characterLevel = item.characterLevel, restrictions = copy(item.restrictions),
         setId = item.setId, noSet = item.noSet == true, removed = item.removed == true
     };
@@ -78,6 +79,9 @@ local function validItem(item)
     end
     if (type(item.name) ~= "string" or item.name == "" or not equipmentSlots[item.slot]
         or not validBonuses(item.values)) then return false; end
+    for _, field in ipairs({ "reviewed", "suggested" }) do
+        if (item[field] ~= nil and type(item[field]) ~= "boolean") then return false; end
+    end
     for _, field in ipairs({ { "id", 4294967295 }, { "category", 4294967295 },
         { "itemLevel", 999 }, { "characterLevel", 160 }, { "setId", 4294967295 } }) do
         if (item[field[1]] ~= nil and not whole(item[field[1]], field[2])) then return false; end
@@ -166,11 +170,12 @@ function StatCapsLoadouts.New(equipment, saved)
                 return nil, "Saved equipped item is invalid.";
             end
             local current = state.original[key];
-            if (current and current.name == item.name and (not current.id or current.id == item.id)
+            if (current and current.name == item.name and (current.suggested or not current.id or current.id == item.id)
                 and (not current.category or current.category == item.category)
-                and (not current.itemLevel or not item.itemLevel or current.itemLevel == item.itemLevel)
+                and (current.suggested or not current.itemLevel or not item.itemLevel or current.itemLevel == item.itemLevel)
                 and (not current.characterLevel or current.characterLevel == item.characterLevel)) then
                 state.original[key] = StatCapsLoadouts.CopyItem(item);
+                state.original[key].reviewed = item.reviewed == true or item.confirmed == true;
                 state.original[key].confirmed = false;
             end
         end
@@ -214,6 +219,26 @@ function StatCapsLoadouts.Serialize(state)
     for key, item in pairs(state.original) do result.original[key] = StatCapsLoadouts.CopyItem(item); end
     for key, item in pairs(state.replacements) do result.replacements[key] = StatCapsLoadouts.CopyItem(item); end
     return result;
+end
+
+function StatCapsLoadouts.ReviewedEquipment(equipment, saved, level)
+    if (not saved) then return {}; end
+    local restored, err = StatCapsLoadouts.New(equipment, saved);
+    if (not restored) then return nil, err; end
+    local reviewed = {};
+    for key, item in pairs(restored.original) do
+        local stored = saved.original and saved.original[key];
+        -- Older plans saved user-chosen variants without review flags; only skip automatic suggestions.
+        if (stored and stored.values and (stored.suggested ~= true or stored.confirmed == true or stored.reviewed == true)
+            and item.name == stored.name
+            and item.category == stored.category and item.slot == stored.slot and item.id == stored.id
+            and item.itemLevel == stored.itemLevel
+            and (not item.characterLevel or item.characterLevel == level)) then
+            reviewed[key] = StatCapsLoadouts.CopyItem(item);
+            reviewed[key].confirmed = true;
+        end
+    end
+    return reviewed;
 end
 
 local function itemValues(item, label, level)

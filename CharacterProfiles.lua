@@ -65,6 +65,7 @@ local function copyItems(source)
                     iconLayers = type(item.iconLayers) == "table" and copyNumbers(item.iconLayers) or nil,
                     category = item.category, label = type(item.label) == "string" and item.label or slot,
                     values = values, confirmed = values ~= nil and item.confirmed ~= false,
+                    suggested = item.suggested == true,
                     manual = item.manual == true or (values ~= nil and item.confirmed ~= false),
                     lookup = type(item.lookup) == "string" and item.lookup or nil,
                     id = number(item.id) and item.id or nil,
@@ -188,6 +189,7 @@ function StatCapsCharacterProfiles.CaptureEquipment(previous, equipped, level)
             icon = type(item.info.GetIconImageID) == "function" and item.info:GetIconImageID() or nil,
             iconLayers = StatCapsLoadouts and StatCapsLoadouts.IconLayers and StatCapsLoadouts.IconLayers(item.info) or nil,
             values = values, characterLevel = characterLevel, confirmed = false,
+            suggested = true,
             id = id, itemLevel = itemLevel, restrictions = restrictions,
             manual = old and old.manual and old.name == name and old.category == category
                 and (not old.characterLevel or old.characterLevel == level) or false,
@@ -201,7 +203,7 @@ function StatCapsCharacterProfiles.MatchingItems(items, equipmentSlot)
     local matches = {};
     for key, item in pairs(type(items) == "table" and items or {}) do
         local slot = item.slot == "Shield" and "OFF_HAND" or item.slot;
-        if (slot == equipmentSlot) then
+        if (slot == equipmentSlot or (StatCapsLoadouts and StatCapsLoadouts.SlotFits(slot, equipmentSlot))) then
             matches[#matches + 1] = { key = key, item = item };
         end
     end

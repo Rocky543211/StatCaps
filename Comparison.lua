@@ -18,7 +18,8 @@ local attributeRatingConversions = {
     Resist = "Resist", CritDef = "CritDef", InHeal = "InHeal", Morale = "Morale"
 };
 
-local function attributedRatingChanges(profile, weights, before, after)
+function StatCapsComparison.AttributeRatingChanges(profile, before, after)
+    local weights = StatCapsAdvice.Weights(profile);
     if (not weights.Fate and not weights.Vitality) then return {}; end
     if (type(CalcStat) ~= "function") then return nil, "Score unavailable: CalcStat is needed to avoid double-counting attributes."; end
     local attributeDeltas = {};
@@ -67,7 +68,7 @@ function StatCapsComparison.Score(profile, before, after)
     if (profile.scoringError) then return nil, {}, profile.scoringError; end
     local total, details, missing = 0, {}, {};
     local weights = StatCapsAdvice.Weights(profile);
-    local attributeChanges, attributeError = attributedRatingChanges(profile, weights, before, after);
+    local attributeChanges, attributeError = StatCapsComparison.AttributeRatingChanges(profile, before, after);
     if (not attributeChanges) then return nil, details, attributeError; end
     local defaultReferences = {};
     for _, field in ipairs(StatCapsScoring.Fields) do defaultReferences[field[1]] = field[3]; end

@@ -2,6 +2,98 @@ StatCapsLocalization = {};
 
 local translations = {
     de = {
+        ["Experimental numeric-stat search, not a guaranteed best or obtainable build. Known rewards use character-to-item-level curves; other items use base levels. Equip minimums stay separate."] =
+            "Experimentelle Suche nach numerischen Boni, ohne Garantie auf Optimum oder Verfügbarkeit. Bekannte Belohnungen nutzen Charakter-zu-Itemstufen-Kurven, andere Basisstufen. Mindeststufen bleiben getrennt.",
+        ["Reward generated at character level: "] = "Belohnung erzeugt auf Charakterstufe: ",
+        ["Item-level range: "] = "Itemstufenbereich: ",
+        ["Base roll used unless overridden."] = "Basiswert, sofern nicht überschrieben.",
+        ["Clear planned gear"] = "Geplante Items löschen",
+        ["Planned gear cleared. All slots keep equipped items. Current bonuses and set/essence totals are unchanged."] =
+            "Geplante Items gelöscht. Alle Slots behalten getragene Items. Aktuelle Boni und Set-/Essenzsummen bleiben unverändert.",
+        ["Tooltip item level (not character level):"] = "Tooltip-Itemstufe (nicht Charakterstufe):",
+        ["Recalculate variants"] = "Varianten neu berechnen",
+        ["Blank uses database/base levels. Check every bonus against the tooltip."] =
+            "Leer = Datenbank-/Basisstufen. Jeden Bonus mit dem Tooltip vergleichen.",
+        ["Item level changed. Click Recalculate variants before choosing."] =
+            "Itemstufe geändert. Vor der Auswahl auf Varianten neu berechnen klicken.",
+        ["Item level changed. Click Find to recalculate variants before choosing."] =
+            "Itemstufe geändert. Vor der Auswahl mit Suchen die Varianten neu berechnen.",
+        ["Best gear (Test)"] = "Beste Ausrüstung (Test)",
+        ["Set bonuses / effects"] = "Setboni / Effekte",
+        ["Supported proposed set totals:"] = "Unterstützte geplante Set-Gesamtboni:",
+        ["No proposed set bonuses."] = "Keine geplanten Setboni.",
+        ["Generate a preview first."] = "Zuerst eine Vorschau erstellen.",
+        ["Active"] = "Aktiv",
+        ["Inactive"] = "Inaktiv",
+        ["Stat Caps - Best gear (Local test)"] = "StatCaps - Beste Ausrüstung (Lokaler Test)",
+        ["Generate best gear (Test)"] = "Ausrüstung suchen (Test)",
+        ["Clear exclusions / pins / levels"] = "Ausschlüsse / Auswahl / Stufen löschen",
+        ["Cancel search"] = "Suche abbrechen",
+        ["Experimental numeric-stat search, not a guaranteed best or obtainable build. Base item levels are used; equip minimums are separate. No gear or saved virtues are changed."] =
+            "Experimentelle Suche nach numerischen Boni, keine garantierte beste oder erhältliche Ausrüstung. Basis-Itemstufen und Mindest-Charakterstufen sind getrennt. Ausrüstung und gespeicherte Tugenden bleiben unverändert.",
+        ["Current gear bonuses, Current extras and equipped virtues match the snapshot."] =
+            "Aktuelle Itemboni, Zusatzboni und aktive Tugenden entsprechen dem Stat-Abbild.",
+        ["Include missing minimums / conditional requirements (unverified)"] =
+            "Fehlende Mindeststufen / bedingte Anforderungen einschließen (ungeprüft)",
+        ["Include items with no known source (often removed or unreleased)"] =
+            "Items ohne bekannte Quelle einschließen (oft entfernt oder unveröffentlicht)",
+        ["No known source: "] = "Keine bekannte Quelle: ",
+        ["Search weapons/class items: same equipped type, no known DPS loss; procs ignored"] =
+            "Waffen/Klassenitems suchen: gleicher Typ, kein bekannter DPS-Verlust; Procs ignoriert",
+        ["Current extras are removed; new numeric sets are automatic. Socket bonuses, ongoing buffs and passive virtue ranks are not optimized. Exclude items you cannot obtain."] =
+            "Aktuelle Zusatzboni werden entfernt; neue numerische Setboni automatisch berechnet. Sockel, laufende Buffs und passive Tugendränge werden nicht optimiert. Unerhältliche Items ausschließen.",
+        ["Exclusion covers all same-name variants"] = "Ausschluss gilt für alle gleichnamigen Varianten",
+        ["Review current item and set/essence totals in the planner first, then confirm above."] =
+            "Zuerst aktuelle Item- und Set-/Essenzboni im Planer prüfen, dann oben bestätigen.",
+        ["Options changed. Generate again; the normal plan is unchanged."] =
+            "Optionen geändert. Erneut suchen; der normale Plan bleibt unverändert.",
+        ["Kept"] = "Beibehalten",
+        ["Chosen"] = "Gewählt",
+        ["Empty slot"] = "Leerer Slot",
+        ["Unknown"] = "Unbekannt",
+        ["Kept from your snapshot. Weapon DPS, legendary effects and proficiency are not fully modeled. Enable same-type weapon search only if you want a numeric-stat test."] =
+            "Aus dem Stat-Abbild beibehalten. Waffen-DPS, legendäre Effekte und Fertigkeiten werden nicht vollständig modelliert. Waffensuche nur für einen numerischen Test aktivieren.",
+        ["No supported eligible alternatives. Missing requirements are excluded unless you explicitly include them."] =
+            "Keine unterstützten passenden Alternativen. Fehlende Anforderungen bleiben ausgeschlossen, sofern nicht ausdrücklich aktiviert.",
+        ["Equip minimum: "] = "Mindest-Charakterstufe: ",
+        ["Item level: "] = "Itemstufe: ",
+        ["Gear + fixed virtues: "] = "Ausrüstung + feste Tugenden: ",
+        ["Unverified requirements: "] = "Ungeprüfte Anforderungen: ",
+        ["Minimum equip level missing."] = "Mindest-Charakterstufe fehlt.",
+        ["Use + recalculate"] = "Wählen + neu",
+        ["Exclude + retry"] = "Ausschließen + neu",
+        ["Set level + retry"] = "Stufe setzen + suchen",
+        ["This is the current item; use the normal planner to edit it."] = "Aktuelles Item; zum Bearbeiten den normalen Planer verwenden.",
+        ["Choose an exact item ID before excluding it."] = "Vor dem Ausschluss eine genaue Item-ID wählen.",
+        ["Confirm the current baseline before searching."] = "Vor der Suche den aktuellen Ausgangszustand bestätigen.",
+        ["The target snapshot is unavailable."] = "Das Ziel-Stat-Abbild ist nicht verfügbar.",
+        ["Searching supported gear and maximum-rank virtues..."] = "Unterstützte Ausrüstung und Tugenden auf Maximalrang werden gesucht...",
+        ["Theoretical active virtues: rank "] = "Theoretische aktive Tugenden: Rang ",
+        ["Unlocked slots: "] = "Freigeschaltete Slots: ",
+        ["Search cancelled. No plan or virtue ranks changed."] = "Suche abgebrochen. Plan und Tugendränge bleiben unverändert.",
+        ["Experimental search failed: "] = "Experimentelle Suche fehlgeschlagen: ",
+        ["The snapshot or current bonuses changed during the search. Review and generate again."] =
+            "Stat-Abbild oder aktuelle Boni haben sich während der Suche geändert. Prüfen und erneut suchen.",
+        ["Max-rank virtues (not saved): "] = "Tugenden auf Maximalrang (nicht gespeichert): ",
+        ["Gear + virtues vs snapshot: "] = "Ausrüstung + Tugenden gegen Stat-Abbild: ",
+        ["Preview ready. Heuristic search, not a proven global optimum. Eligible records: "] =
+            "Vorschau bereit. Heuristische Suche, kein bewiesenes Optimum. Passende Datensätze: ",
+        ["Unsupported scaling: "] = "Nicht unterstützte Skalierung: ",
+        ["Exclusions: "] = "Ausschlüsse: ",
+        ["Unscored set effects: "] = "Nicht bewertete Seteffekte: ",
+        ["Scanning eligible items"] = "Passende Items suchen",
+        ["Balancing gear and set bonuses"] = "Ausrüstung und Setboni abstimmen",
+        ["Optimizing maximum-rank virtues"] = "Tugenden auf Maximalrang optimieren",
+        ["Checking equipment-set families"] = "Ausrüstungssets prüfen",
+        ["Preparing alternatives"] = "Alternativen vorbereiten",
+        ["Enter the full current item bonuses first: "] = "Zuerst vollständige aktuelle Itemboni eingeben: ",
+        ["Experimental equip rules could not be loaded: "] = "Experimentelle Ausrüstungsregeln konnten nicht geladen werden: ",
+        ["Current bonus totals exceed captured "] = "Aktuelle Gesamtboni überschreiten das Stat-Abbild für ",
+        ["Current item/set/virtue totals exceed the captured "] = "Aktuelle Item-/Set-/Tugendboni überschreiten das Stat-Abbild für ",
+        ["Correct the baseline first."] = "Zuerst den Ausgangszustand korrigieren.",
+        ["The pinned item is excluded, ineligible or unsupported for: "] = "Das gewählte Item ist ausgeschlossen, unzulässig oder nicht unterstützt für: ",
+        ["Equipment or character level changed. Refresh equipment and review the current bonuses first."] =
+            "Ausrüstung oder Charakterstufe geändert. Ausrüstung aktualisieren und aktuelle Boni prüfen.",
         ["Stat Caps - Choose essence"] = "StatCaps - Essenz wählen",
         ["Stat Caps - Plan consumables"] = "StatCaps - Verbrauchsboni planen",
         ["Stat Caps - Item sources"] = "StatCaps - Itemquellen",
@@ -849,6 +941,13 @@ local translations = {
         ["These choices/ranks match my equipped virtues (including None)."] = "Diese Auswahl/Ränge entsprechen meinen ausgerüsteten Tugenden (einschließlich Keine).",
         ["Recommend virtues"] = "Tugenden empfehlen",
         ["No virtues equipped"] = "Keine Tugenden ausgerüstet",
+        ["Apply to planner only"] = "Nur in Planer übernehmen",
+        ["Does NOT change your in-game virtues.\nEquip them yourself in the game."] = "Ändert NICHT deine Tugenden im Spiel.\nRüste sie selbst im Spiel aus.",
+        ["Already equipped; nothing changed."] = "Bereits ausgerüstet; nichts geändert.",
+        ["Planner updated ("] = "Planer aktualisiert (",
+        [" slot(s) changed).\nYour in-game virtues did NOT change: plugins cannot equip virtues. Equip the same virtues in the game yourself."] = " Platz/Plätze geändert).\nDeine Tugenden im Spiel wurden NICHT geändert: Plugins können keine Tugenden ausrüsten. Rüste dieselben Tugenden selbst im Spiel aus.",
+        ["New slots use the recommended rank; correct ranks you have not earned yet."] =
+            "Neue Plätze verwenden den empfohlenen Rang; korrigiere Ränge, die du noch nicht erreicht hast.",
         ["All virtue ranks"] = "Alle Tugendenränge",
         ["Save all virtue ranks"] = "Alle Tugendenränge speichern",
         ["Select equipped virtue"] = "Ausgerüstete Tugend wählen",
@@ -869,6 +968,98 @@ local translations = {
             "StatCaps geladen. Klicke auf das SC-Symbol oder gib /statcaps ein, um das Fenster ein-/auszublenden."
     },
     fr = {
+        ["Experimental numeric-stat search, not a guaranteed best or obtainable build. Known rewards use character-to-item-level curves; other items use base levels. Equip minimums stay separate."] =
+            "Recherche expérimentale, sans garantie d'optimum ni de disponibilité. Récompenses connues : courbes personnage-vers-objet ; autres objets : niveau de base. Minimums d'équipement distincts.",
+        ["Reward generated at character level: "] = "Récompense générée au niveau du personnage : ",
+        ["Item-level range: "] = "Plage de niveaux d'objet : ",
+        ["Base roll used unless overridden."] = "Valeur de base, sauf remplacement manuel.",
+        ["Clear planned gear"] = "Effacer les objets prévus",
+        ["Planned gear cleared. All slots keep equipped items. Current bonuses and set/essence totals are unchanged."] =
+            "Objets prévus effacés. Tous les emplacements conservent les objets équipés. Bonus actuels et totaux de set/essence inchangés.",
+        ["Tooltip item level (not character level):"] = "Niveau d'objet du tooltip (pas du personnage) :",
+        ["Recalculate variants"] = "Recalculer les variantes",
+        ["Blank uses database/base levels. Check every bonus against the tooltip."] =
+            "Vide = niveaux de base. Comparez chaque bonus au tooltip.",
+        ["Item level changed. Click Recalculate variants before choosing."] =
+            "Niveau modifié. Cliquez sur Recalculer les variantes avant de choisir.",
+        ["Item level changed. Click Find to recalculate variants before choosing."] =
+            "Niveau modifié. Cliquez sur Chercher pour recalculer avant de choisir.",
+        ["Best gear (Test)"] = "Meilleur équipement (Test)",
+        ["Set bonuses / effects"] = "Bonus / effets de set",
+        ["Supported proposed set totals:"] = "Totaux de set proposés pris en charge :",
+        ["No proposed set bonuses."] = "Aucun bonus de set proposé.",
+        ["Generate a preview first."] = "Générez d'abord un aperçu.",
+        ["Active"] = "Actif",
+        ["Inactive"] = "Inactif",
+        ["Stat Caps - Best gear (Local test)"] = "StatCaps - Meilleur équipement (Test local)",
+        ["Generate best gear (Test)"] = "Chercher l'équipement (Test)",
+        ["Clear exclusions / pins / levels"] = "Effacer exclusions / choix / niveaux",
+        ["Cancel search"] = "Annuler la recherche",
+        ["Experimental numeric-stat search, not a guaranteed best or obtainable build. Base item levels are used; equip minimums are separate. No gear or saved virtues are changed."] =
+            "Recherche expérimentale de bonus numériques, sans garantie d'optimum ni de disponibilité. Niveau d'objet de base et minimum du personnage restent distincts. Équipement et vertus enregistrées inchangés.",
+        ["Current gear bonuses, Current extras and equipped virtues match the snapshot."] =
+            "Bonus d'objets, bonus supplémentaires et vertus actives correspondent à l'instantané.",
+        ["Include missing minimums / conditional requirements (unverified)"] =
+            "Inclure minimums manquants / conditions supplémentaires (non vérifiés)",
+        ["Include items with no known source (often removed or unreleased)"] =
+            "Inclure les objets sans source connue (souvent retirés ou jamais publiés)",
+        ["No known source: "] = "Sans source connue : ",
+        ["Search weapons/class items: same equipped type, no known DPS loss; procs ignored"] =
+            "Armes/objets de classe : même type équipé, aucune perte de DPS connue ; procs ignorés",
+        ["Current extras are removed; new numeric sets are automatic. Socket bonuses, ongoing buffs and passive virtue ranks are not optimized. Exclude items you cannot obtain."] =
+            "Bonus actuels retirés ; nouveaux sets numériques automatiques. Essences, buffs actifs et rangs passifs non optimisés. Excluez les objets inaccessibles.",
+        ["Exclusion covers all same-name variants"] = "Exclure toutes les variantes du même nom",
+        ["Review current item and set/essence totals in the planner first, then confirm above."] =
+            "Vérifiez d'abord les bonus actuels d'objets et de set/essence dans le planificateur, puis confirmez.",
+        ["Options changed. Generate again; the normal plan is unchanged."] =
+            "Options modifiées. Relancez la recherche ; le plan normal reste inchangé.",
+        ["Kept"] = "Conservé",
+        ["Chosen"] = "Choisi",
+        ["Empty slot"] = "Emplacement vide",
+        ["Unknown"] = "Inconnu",
+        ["Kept from your snapshot. Weapon DPS, legendary effects and proficiency are not fully modeled. Enable same-type weapon search only if you want a numeric-stat test."] =
+            "Conservé depuis l'instantané. DPS, effets légendaires et aptitudes ne sont pas entièrement modélisés. Activez la recherche d'armes uniquement pour un test numérique.",
+        ["No supported eligible alternatives. Missing requirements are excluded unless you explicitly include them."] =
+            "Aucune alternative compatible prise en charge. Conditions manquantes exclues sauf activation explicite.",
+        ["Equip minimum: "] = "Niveau minimum du personnage : ",
+        ["Item level: "] = "Niveau d'objet : ",
+        ["Gear + fixed virtues: "] = "Équipement + vertus fixes : ",
+        ["Unverified requirements: "] = "Conditions non vérifiées : ",
+        ["Minimum equip level missing."] = "Niveau minimum du personnage manquant.",
+        ["Use + recalculate"] = "Choisir + recalculer",
+        ["Exclude + retry"] = "Exclure + relancer",
+        ["Set level + retry"] = "Niveau + relancer",
+        ["This is the current item; use the normal planner to edit it."] = "Objet actuel ; modifiez-le dans le planificateur normal.",
+        ["Choose an exact item ID before excluding it."] = "Choisissez un ID d'objet précis avant de l'exclure.",
+        ["Confirm the current baseline before searching."] = "Confirmez l'état actuel avant la recherche.",
+        ["The target snapshot is unavailable."] = "L'instantané cible n'est pas disponible.",
+        ["Searching supported gear and maximum-rank virtues..."] = "Recherche d'équipement et de vertus au rang maximal...",
+        ["Theoretical active virtues: rank "] = "Vertus actives théoriques : rang ",
+        ["Unlocked slots: "] = "Emplacements débloqués : ",
+        ["Search cancelled. No plan or virtue ranks changed."] = "Recherche annulée. Plan et rangs de vertus inchangés.",
+        ["Experimental search failed: "] = "Échec de la recherche expérimentale : ",
+        ["The snapshot or current bonuses changed during the search. Review and generate again."] =
+            "Instantané ou bonus actuels modifiés pendant la recherche. Vérifiez et relancez.",
+        ["Max-rank virtues (not saved): "] = "Vertus au rang maximal (non enregistrées) : ",
+        ["Gear + virtues vs snapshot: "] = "Équipement + vertus comparés à l'instantané : ",
+        ["Preview ready. Heuristic search, not a proven global optimum. Eligible records: "] =
+            "Aperçu prêt. Recherche heuristique, optimum global non garanti. Objets compatibles : ",
+        ["Unsupported scaling: "] = "Évolution non prise en charge : ",
+        ["Exclusions: "] = "Exclusions : ",
+        ["Unscored set effects: "] = "Effets de set non évalués : ",
+        ["Scanning eligible items"] = "Recherche d'objets compatibles",
+        ["Balancing gear and set bonuses"] = "Équilibrage de l'équipement et des sets",
+        ["Optimizing maximum-rank virtues"] = "Optimisation des vertus au rang maximal",
+        ["Checking equipment-set families"] = "Vérification des ensembles d'équipement",
+        ["Preparing alternatives"] = "Préparation des alternatives",
+        ["Enter the full current item bonuses first: "] = "Entrez d'abord tous les bonus de l'objet actuel : ",
+        ["Experimental equip rules could not be loaded: "] = "Chargement des conditions expérimentales impossible : ",
+        ["Current bonus totals exceed captured "] = "Les bonus actuels dépassent l'instantané pour ",
+        ["Current item/set/virtue totals exceed the captured "] = "Les bonus actuels d'objet/set/vertu dépassent l'instantané pour ",
+        ["Correct the baseline first."] = "Corrigez d'abord l'état actuel.",
+        ["The pinned item is excluded, ineligible or unsupported for: "] = "L'objet choisi est exclu, incompatible ou non pris en charge pour : ",
+        ["Equipment or character level changed. Refresh equipment and review the current bonuses first."] =
+            "Équipement ou niveau du personnage modifié. Actualisez l'équipement et vérifiez les bonus actuels.",
         ["Stat Caps - Choose essence"] = "StatCaps - Choisir une essence",
         ["Stat Caps - Plan consumables"] = "StatCaps - Planifier les consommables",
         ["Stat Caps - Item sources"] = "StatCaps - Sources de l'objet",
@@ -1684,6 +1875,13 @@ local translations = {
         ["These choices/ranks match my equipped virtues (including None)."] = "Ces choix/rangs correspondent à mes vertus équipées (y compris aucune).",
         ["Recommend virtues"] = "Recommander des vertus",
         ["No virtues equipped"] = "Aucune vertu équipée",
+        ["Apply to planner only"] = "Appliquer au planificateur seulement",
+        ["Does NOT change your in-game virtues.\nEquip them yourself in the game."] = "Ne change PAS vos vertus en jeu.\nÉquipez-les vous-même dans le jeu.",
+        ["Already equipped; nothing changed."] = "Déjà équipées ; rien n'a changé.",
+        ["Planner updated ("] = "Planificateur mis à jour (",
+        [" slot(s) changed).\nYour in-game virtues did NOT change: plugins cannot equip virtues. Equip the same virtues in the game yourself."] = " emplacement(s) modifié(s)).\nVos vertus en jeu n'ont PAS changé : les plugins ne peuvent pas équiper de vertus. Équipez vous-même les mêmes vertus dans le jeu.",
+        ["New slots use the recommended rank; correct ranks you have not earned yet."] =
+            "Les nouveaux emplacements utilisent le rang recommandé ; corrigez les rangs pas encore obtenus.",
         ["All virtue ranks"] = "Tous les rangs de vertu",
         ["Save all virtue ranks"] = "Enregistrer tous les rangs de vertu",
         ["Select equipped virtue"] = "Choisir une vertu équipée",

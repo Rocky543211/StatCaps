@@ -168,29 +168,44 @@ function StatCapsVirtues.Recommend(calc, className, profile, snapshot, level, se
         end
     end
     local base = StatCapsManual.Project(calc, className, snapshot, equipped, zero);
+    local baseAttributes, attributeError = StatCapsComparison.AttributeRatingChanges(profile, snapshot, base);
+    if (not baseAttributes) then return nil, attributeError; end
+    local equippedNames = {};
+    for _, choice in pairs(normalized) do equippedNames[choice.name] = choice.rank; end
     local candidates = {};
     for _, virtue in ipairs(StatCapsVirtueData.virtues) do
         local rank = ranks and math.min(ranks[virtue.name], limits.rank) or limits.rank;
         if (rank > 0) then
             local values = StatCapsManual.Parse({});
             addBonuses(values, virtue.ranks[rank]);
+            local contribution = StatCapsManual.Project(calc, className, empty, zero, values);
+            local attributes, err = StatCapsComparison.AttributeRatingChanges(profile, empty, contribution);
+            if (not attributes) then return nil, err; end
             candidates[#candidates + 1] = {
                 name = virtue.name, rank = rank, values = values,
-                contribution = StatCapsManual.Project(calc, className, empty, zero, values)
+                contribution = contribution, attributeChanges = attributes,
+                equipped = equippedNames[virtue.name] == rank
             };
         end
     end
     -- Compare every legal set. Sum derived contributions before clipping at caps.
     local dimensions, totals = {}, {};
+    local references = {};
+    for _, field in ipairs(StatCapsScoring.Fields) do references[field[1]] = field[3]; end
     for key, weight in pairs(StatCapsAdvice.Weights(profile)) do
-        if (key == "Morale") then
-            dimensions[#dimensions + 1] = { key = key, base = base.morale, cap = math.huge,
-                reference = snapshot.morale, weight = weight };
+        if (key == "Fate" or key == "Vitality" or key == "Armour" or key == "Morale") then
+            local value, reference;
+            if (key == "Fate" or key == "Vitality") then
+                value, reference = base.attributes[key], references[key];
+            elseif (key == "Armour") then value, reference = base.armour, snapshot.armour;
+            else value, reference = base.morale - (baseAttributes.Morale or 0), snapshot.morale; end
+            dimensions[#dimensions + 1] = { key = key, base = value, cap = math.huge,
+                reference = reference, weight = weight };
         elseif (base.samples[key]) then
             local sample = base.samples[key];
             local cap, err = StatCapsScoring.Limit(profile, key, sample, snapshot.level);
             if (not cap) then return nil, err; end
-            dimensions[#dimensions + 1] = { key = key, base = sample.rating,
+            dimensions[#dimensions + 1] = { key = key, base = sample.rating - (baseAttributes[key] or 0),
                 cap = cap, reference = sample.limit, weight = weight };
         end
     end
@@ -206,19 +221,27 @@ function StatCapsVirtues.Recommend(calc, className, profile, snapshot, level, se
     for d, dimension in ipairs(dimensions) do
         totals[d] = dimension.base;
         for _, candidate in ipairs(candidates) do
-            candidate[d] = dimension.key == "Morale" and candidate.contribution.morale
-                or candidate.contribution.samples[dimension.key].rating;
+            local key = dimension.key;
+            if (key == "Fate" or key == "Vitality") then candidate[d] = candidate.contribution.attributes[key];
+            elseif (key == "Armour") then candidate[d] = candidate.contribution.armour;
+            elseif (key == "Morale") then
+                candidate[d] = candidate.contribution.morale - (candidate.attributeChanges.Morale or 0);
+            else
+                candidate[d] = candidate.contribution.samples[key].rating - (candidate.attributeChanges[key] or 0);
+            end
         end
     end
-    local bestScore, best, chosen = -math.huge, {}, {};
+    local bestScore, bestKept, best, chosen = -math.huge, -1, {}, {};
     local function search(start, remaining)
         if (remaining == 0) then
-            local score = 0;
+            local score, kept = 0, 0;
             for d, dimension in ipairs(dimensions) do
-                score = score + math.min(totals[d], dimension.cap) / dimension.reference * dimension.weight;
+                score = score + math.min(math.max(0, totals[d]), dimension.cap) / dimension.reference * dimension.weight;
             end
-            if (score > bestScore + 0.000000001) then
-                bestScore, best = score, {};
+            for _, candidate in ipairs(chosen) do if (candidate.equipped) then kept = kept + 1; end end
+            if (score > bestScore + StatCapsScoring.ScoreTolerance
+                or (math.abs(score - bestScore) <= StatCapsScoring.ScoreTolerance and kept > bestKept)) then
+                bestScore, bestKept, best = score, kept, {};
                 for i, candidate in ipairs(chosen) do best[i] = candidate; end
             end
             return;

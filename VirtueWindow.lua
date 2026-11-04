@@ -30,12 +30,12 @@ function StatCapsVirtueWindow.Open(getContext, savedSelection, saveSelection, tr
     label(win, "Rank", 430, 135, 90, 22);
     local list = Turbine.UI.ListBox();
     list:SetParent(win);
-    list:SetPosition(20, 365);
-    list:SetSize(590, 205);
+    list:SetPosition(20, 400);
+    list:SetSize(590, 170);
     local scroll = Turbine.UI.Lotro.ScrollBar();
     scroll:SetParent(win);
-    scroll:SetPosition(614, 365);
-    scroll:SetSize(12, 205);
+    scroll:SetPosition(614, 400);
+    scroll:SetSize(12, 170);
     scroll:SetOrientation(Turbine.UI.Orientation.Vertical);
     list:SetVerticalScrollBar(scroll);
     local function show(text)
@@ -72,8 +72,11 @@ function StatCapsVirtueWindow.Open(getContext, savedSelection, saveSelection, tr
     options:SetVerticalScrollBar(optionScroll);
     picker:SetVisible(false);
     local rankWindow, rankInputs, rankStatus;
-    local rows, limits, confirm, refresh = {}, nil, nil, nil;
+    local rows, limits, confirm, refresh, apply = {}, nil, nil, nil, nil;
+    local recommended;
     local function invalidate()
+        recommended = nil;
+        if (apply) then apply:SetEnabled(false); end
         if (confirm) then confirm:SetChecked(false); end
         show("Choices changed. Confirm they match the game, then click Recommend virtues.");
     end
@@ -156,6 +159,51 @@ function StatCapsVirtueWindow.Open(getContext, savedSelection, saveSelection, tr
             row.rank:SetEnabled(false);
         end
         invalidateConfirmed();
+    end
+    apply = StatCapsTheme.Button();
+    apply:SetParent(win);
+    apply:SetPosition(20, 370);
+    apply:SetSize(210, 24);
+    apply:SetText(T("Apply to planner only"));
+    local applyNote = label(win, "Does NOT change your in-game virtues.\nEquip them yourself in the game.", 240, 368, 385, 30);
+    applyNote:SetForeColor(Turbine.UI.Color(1, 0.65, 0.3));
+    apply:SetEnabled(false);
+    apply.Click = function()
+        if (not recommended or not limits) then return; end
+        local choices, wanted, slots = recommended, {}, {};
+        for _, virtue in ipairs(choices) do wanted[virtue.name] = virtue; end
+        for index, row in ipairs(rows) do
+            if (row.name and wanted[row.name] and index <= limits.slots) then
+                slots[index] = { name = row.name, rank = tonumber(row.rank:GetText()) or wanted[row.name].rank };
+                wanted[row.name] = nil;
+            end
+        end
+        local free = 1;
+        for _, virtue in ipairs(choices) do
+            if (wanted[virtue.name]) then
+                while (slots[free] and free <= limits.slots) do free = free + 1; end
+                if (free <= limits.slots) then slots[free] = { name = virtue.name, rank = virtue.rank }; end
+            end
+        end
+        local changed = 0;
+        for index, row in ipairs(rows) do
+            local slot = slots[index];
+            if ((slot and slot.name) ~= row.name) then changed = changed + 1; end
+            row.name = slot and slot.name or nil;
+            row.rank:SetText(slot and tostring(slot.rank) or "");
+        end
+        refresh();
+        local selection = {};
+        for index, row in ipairs(rows) do
+            if (row.name) then selection[index] = { name = row.name, rank = tonumber(row.rank:GetText()) }; end
+        end
+        saveSelection(selection);
+        recommended = nil;
+        apply:SetEnabled(false);
+        confirm:SetChecked(true);
+        show((changed == 0 and "Already equipped; nothing changed." or
+            "Planner updated (" .. changed .. " slot(s) changed).\nYour in-game virtues did NOT change: plugins cannot equip virtues. Equip the same virtues in the game yourself.") ..
+            (tracking and "" or "\nNew slots use the recommended rank; correct ranks you have not earned yet."));
     end
     if (tracking) then
         local edit = StatCapsTheme.Button();
@@ -302,6 +350,8 @@ function StatCapsVirtueWindow.Open(getContext, savedSelection, saveSelection, tr
             context.profile, context.snapshot, context.level, selection, tracking and tracking.ranks);
         if (not result) then show(err); return; end
         saveSelection(result.selection);
+        recommended = result.choices;
+        apply:SetEnabled(true);
         local lines = {
             result.actualRanks and "Using your saved earned ranks, limited by character level." or
                 "Assuming ALL candidate virtues at rank " .. result.limits.rank .. ".",

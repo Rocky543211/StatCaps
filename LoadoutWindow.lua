@@ -189,7 +189,7 @@ function StatCapsLoadoutWindow.Open(getContext, getProfiles, getPlan, savePlan, 
     end
     local editorHelp = label(editor, "Enter full item bonuses, including essences, not character totals.\nManual set additions must contain only bonuses not already counted automatically. Percentages and procs are not flat ratings.", 22, 459, 633, 46);
     local searchItem, searchPiece, setAssignment, setOnly;
-    local bonusWindow, sourcesWindow, consumableButton;
+    local bonusWindow, sourcesWindow, consumableButton, bestGearWindow;
     local persistPlan;
 
     local function changed()
@@ -203,6 +203,12 @@ function StatCapsLoadoutWindow.Open(getContext, getProfiles, getPlan, savePlan, 
 
     local function targetKey()
         return selectedTarget or (context and context.characterName);
+    end
+    win.GetCurrentPlan = function(key)
+        if (state and key == targetKey()) then return StatCapsLoadouts.Serialize(state); end
+        local cached = activePlans[key];
+        if (cached and cached.state) then return StatCapsLoadouts.Serialize(cached.state); end
+        return plans[key];
     end
     persistPlan = function()
         local key = targetKey();
@@ -308,6 +314,10 @@ function StatCapsLoadoutWindow.Open(getContext, getProfiles, getPlan, savePlan, 
     local searchList = list(search, 22, 163, 633, 241);
     local previous, nextPage;
     local targetFilter, armourFilter, qualityFilter;
+    local variantLevel = entry(search, 350, 82, 70);
+    local variantLevelLabel = label(search, "Tooltip item level (not character level):", 22, 82, 320, 26);
+    variantLevelLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12);
+    variantLevel:SetVisible(false); variantLevelLabel:SetVisible(false);
     local function searchItems()
         searchList:ClearItems();
         local results, total, err;
@@ -320,9 +330,13 @@ function StatCapsLoadoutWindow.Open(getContext, getProfiles, getPlan, savePlan, 
                     quality = qualityFilter.choice > 1 and qualityFilter.choice - 1 or nil
                 });
         elseif (searchMode == "variants") then
-            results, total = {}, #searchVariants;
-            for index = (searchPage - 1) * 30 + 1, math.min(searchPage * 30, total) do
-                results[#results + 1] = searchVariants[index];
+            local candidates;
+            candidates, err = StatCapsItemDatabase.RelevelCandidates(searchVariants, variantLevel:GetText(), context.level);
+            if (candidates) then
+                results, total = {}, #candidates;
+                for index = (searchPage - 1) * 30 + 1, math.min(searchPage * 30, total) do
+                    results[#results + 1] = candidates[index];
+                end
             end
         else
             local all;
@@ -385,6 +399,10 @@ function StatCapsLoadoutWindow.Open(getContext, getProfiles, getPlan, savePlan, 
         nextPage:SetEnabled(false);
         searchStatus:SetText(T("Enter a name, numeric ID or item link, then click Find."));
     end
+    variantLevel.TextChanged = function()
+        searchList:ClearItems(); previous:SetEnabled(false); nextPage:SetEnabled(false);
+        searchStatus:SetText(T("Item level changed. Click Find to recalculate variants before choosing."));
+    end
     targetFilter = Turbine.UI.Lotro.CheckBox();
     targetFilter:SetParent(search);
     targetFilter:SetPosition(22, 82);
@@ -401,7 +419,11 @@ function StatCapsLoadoutWindow.Open(getContext, getProfiles, getPlan, savePlan, 
         searchMode, searchPage = mode, 1;
         searchVariants = variants;
         query:SetEnabled(mode ~= "variants");
-        for _, control in ipairs({ targetFilter, armourFilter, qualityFilter }) do control:SetEnabled(mode == "items"); end
+        for _, control in ipairs({ targetFilter, armourFilter, qualityFilter }) do
+            control:SetEnabled(mode == "items"); control:SetVisible(mode ~= "variants");
+        end
+        variantLevel:SetVisible(mode == "variants"); variantLevelLabel:SetVisible(mode == "variants");
+        variantLevel:SetText("");
         query:SetText("");
         searchList:ClearItems();
         previous:SetEnabled(false);
@@ -585,6 +607,7 @@ function StatCapsLoadoutWindow.Open(getContext, getProfiles, getPlan, savePlan, 
                 return;
             end
             draft.name, draft.values, draft.itemLevel, draft.confirmed = name, values, level, true;
+            draft.reviewed, draft.suggested = editingSide == "original", false;
             if (draft.characterLevel and draft.characterLevel ~= context.level) then
                 editorStatus:SetText(T("Character level changed. Search this scaling item again and verify its bonuses."));
                 return;
@@ -1112,6 +1135,20 @@ function StatCapsLoadoutWindow.Open(getContext, getProfiles, getPlan, savePlan, 
         setsChecked:SetVisible(false);
         changed(); renderGear();
     end);
+    button(win, "Best gear (Test)", 558, 632, 180, function()
+        if (bestGearWindow) then bestGearWindow.CloseChildren(); bestGearWindow:SetVisible(false); end
+        bestGearWindow = StatCapsBestGearWindow.Open(function()
+            if (not context or not state) then return nil, nil, "Refresh the planner's character first."; end
+            local fresh, err = getContext(selectedTarget);
+            if (not fresh) then return nil, nil, err; end
+            local source, equipmentError = StatCapsLoadouts.Equipment(fresh.equipment);
+            if (not source) then return nil, nil, equipmentError; end
+            if (fresh.level ~= context.level or not sameEquipment(state.source, source)) then
+                return nil, nil, "Equipment or character level changed. Refresh equipment and review the current bonuses first.";
+            end
+            return fresh, state;
+        end);
+    end);
 
     local function chooseTarget(key)
         resumeCalculation = false;
@@ -1159,7 +1196,7 @@ function StatCapsLoadoutWindow.Open(getContext, getProfiles, getPlan, savePlan, 
     end
     local targetList = list(targets, 18, 78, 394, 320);
     label(targets, "Choose which character's equipment and build to use.", 18, 38, 390, 32);
-    targetButton = button(win, "Target: This character", 22, 42, 462, function()
+    targetButton = button(win, "Target: This character", 22, 42, 350, function()
         targetList:ClearItems();
         targetList:AddItem(button(nil, "This character - current live stats", 0, 0, 374, function() chooseTarget(nil); end));
         for _, saved in ipairs(getProfiles and getProfiles() or {}) do
@@ -1172,11 +1209,21 @@ function StatCapsLoadoutWindow.Open(getContext, getProfiles, getPlan, savePlan, 
         targets:SetVisible(true);
         targets:Activate();
     end);
-    button(win, "Refresh equipment", 498, 42, 240, function() chooseTarget(selectedTarget); end);
+    button(win, "Refresh equipment", 386, 42, 170, function() chooseTarget(selectedTarget); end);
+    button(win, "Clear planned gear", 568, 42, 170, function()
+        if (not state) then return; end
+        resumeCalculation, resumeSetReview = false, false;
+        win.HideChildren();
+        state.replacements = {};
+        local saved = changed();
+        renderGear();
+        if (saved) then status:SetText(T("Planned gear cleared. All slots keep equipped items. Current bonuses and set/essence totals are unchanged.")); end
+    end);
     win.HideChildren = function()
         for _, child in ipairs({ report, editor, search, setsWindow, setPrompt, targets }) do child:SetVisible(false); end
         if (bonusWindow) then bonusWindow:SetVisible(false); end
         if (sourcesWindow) then sourcesWindow:SetVisible(false); end
+        if (bestGearWindow) then bestGearWindow.CloseChildren(); bestGearWindow:SetVisible(false); end
     end
     editor.VisibleChanged = function()
         if (not editor:IsVisible()) then

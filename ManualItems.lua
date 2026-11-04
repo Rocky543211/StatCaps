@@ -41,8 +41,29 @@ function StatCapsManual.DPSChange(old, replacement)
     if (not old or not replacement) then
         return "Weapon DPS: comparison unavailable. Enter DPS for both weapons (blank = unknown).";
     end
+
     return string.format("Weapon DPS: %.1f -> %.1f / %+.1f DPS (%+.1f%%). Separate from stat points.",
         old, replacement, replacement - old, 100 * (replacement - old) / old);
+end
+
+function StatCapsManual.CompatibleSlots(a, b)
+    if (not a or not b) then return nil; end
+    if (a == b or StatCapsLoadouts.SlotFits(a, b) or StatCapsLoadouts.SlotFits(b, a)) then return true; end
+    for _, slot in ipairs(StatCapsLoadouts.Slots) do
+        if (StatCapsLoadouts.SlotFits(slot[3], a) and StatCapsLoadouts.SlotFits(slot[3], b)) then return true; end
+    end
+    return false;
+end
+
+local weaponCategories = {
+    [1] = true, [10] = true, [12] = true, [24] = true, [29] = true, [30] = true,
+    [34] = true, [36] = true, [40] = true, [44] = true, [46] = true,
+    [104] = true, [110] = true, [290] = true
+};
+function StatCapsManual.CompatibleItems(aSlot, aCategory, bSlot, bCategory)
+    if (aCategory and bCategory and aCategory ~= bCategory
+        and not (weaponCategories[aCategory] and weaponCategories[bCategory])) then return false; end
+    return StatCapsManual.CompatibleSlots(aSlot, bSlot);
 end
 
 local derived = {
@@ -205,20 +226,33 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
     report:SetVisible(false);
     local picker = StatCapsTheme.Window();
     picker:SetText(T("Stat Caps - Choose item variant"));
-    picker:SetSize(690, 420);
-    StatCapsTheme.Panel(picker, 690, 420);
-    picker:SetPosition(math.max(0, (width - 690) / 2), math.max(0, (height - 420) / 2));
+    picker:SetSize(690, 490);
+    StatCapsTheme.Panel(picker, 690, 490);
+    picker:SetPosition(math.max(0, (width - 690) / 2), math.max(0, (height - 490) / 2));
     local pickerHint = label(picker, "Choose the base bonuses matching your tooltip. These are NOT verified instances.\nOnly supported records are listed. If none matches, close and enter manually.", 20, 38, 650, 45);
     local variantList = Turbine.UI.ListBox();
     variantList:SetParent(picker);
-    variantList:SetPosition(20, 90);
+    variantList:SetPosition(20, 140);
     variantList:SetSize(630, 310);
     local variantScroll = Turbine.UI.Lotro.ScrollBar();
     variantScroll:SetParent(picker);
-    variantScroll:SetPosition(654, 90);
+    variantScroll:SetPosition(654, 140);
     variantScroll:SetSize(12, 310);
     variantScroll:SetOrientation(Turbine.UI.Orientation.Vertical);
     variantList:SetVerticalScrollBar(variantScroll);
+    local variantLevelLabel = label(picker, "Tooltip item level (not character level):", 20, 91, 325, 26);
+    variantLevelLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12);
+    local variantLevel = Turbine.UI.Lotro.TextBox();
+    variantLevel:SetParent(picker); variantLevel:SetPosition(350, 91); variantLevel:SetSize(70, 26);
+    variantLevel:SetFont(Turbine.UI.Lotro.Font.Verdana14); variantLevel:SetMultiline(false);
+    local variantRecalculate = StatCapsTheme.Button();
+    variantRecalculate:SetParent(picker); variantRecalculate:SetPosition(435, 91); variantRecalculate:SetSize(215, 26);
+    variantRecalculate:SetText(T("Recalculate variants"));
+    local variantStatus = label(picker, "Blank uses database/base levels. Check every bonus against the tooltip.", 20, 453, 650, 30);
+    variantLevel.TextChanged = function()
+        variantList:ClearItems();
+        variantStatus:SetText(T("Item level changed. Click Recalculate variants before choosing."));
+    end
     picker:SetVisible(false);
     local sourcesWindow, bonusWindow;
     local function renderCandidates(list, candidates, chooseItem, searching)
@@ -444,7 +478,7 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
         hint:SetText(T(inputHint));
     end
     local slots = {};
-    local applySavedBaseline;
+    local applySavedBaseline, analyze;
     local applySavedItem;
     if (openLoadouts) then
         local loadouts = StatCapsTheme.Button();
@@ -518,6 +552,9 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
             result:SetText("Inputs changed. Analyze again to use the entered values.");
         end
         local function fillItem(info, data, keepOnFailure, isWorn, equipmentSlotHint, automatic, equipmentKey)
+            local reused, reviewError = slot.reuseReviewed(info, equipmentSlotHint, equipmentKey, nil, data);
+            if (reused == nil) then result:SetText(T(reviewError)); return; end
+            if (reused) then return; end
             local values, message, equipmentSlot, variants, characterLevel =
                 StatCapsItemDatabase.Lookup(data, info, comparisonLevel());
             if (not values) then StatCapsManual.LastItemIssue = message; end
@@ -543,6 +580,7 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
                 return;
             end
             slot.info = info;
+            slot.category = info:GetCategory();
             slot.fromWorn = isWorn == true;
             slot.equipmentKey = equipmentKey;
             slot.characterLevel = characterLevel;
@@ -550,7 +588,7 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
             name:SetText(info:GetName());
             for _, entry in pairs(slot.entries) do entry:SetText(""); end
             invalidate();
-            slot.equipmentSlot = equipmentSlot or equipmentSlotHint;
+            slot.equipmentSlot = equipmentSlotHint or equipmentSlot;
             slot.lookup = message;
             slot.bonusesUnknown = values == nil;
             if (values) then
@@ -566,11 +604,12 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
                 if (not slot.variants) then return; end
                 picker:SetText(T("Stat Caps - Choose item variant"));
                 pickerHint:SetText(T("Choose the base bonuses matching your tooltip. These are NOT verified instances.\nOnly supported records are listed. If none matches, close and enter manually."));
-                renderCandidates(variantList, slot.variants, function(candidate)
+                variantLevel:SetText("");
+                local function choose(candidate)
                     for key, entry in pairs(slot.entries) do
                         entry:SetText(key == "WeaponDPS" and (candidate.values[key] and tostring(candidate.values[key]) or "") or tostring(candidate.values[key] or 0));
                     end
-                    slot.equipmentSlot = candidate.slot;
+                    slot.equipmentSlot = equipmentSlotHint or candidate.slot;
                     slot.characterLevel = candidate.characterLevel;
                     slot.bonusesUnknown, slot.variants = false, nil;
                     if (slot.worn) then slot.worn:SetText(T("Choose worn item")); end
@@ -580,7 +619,17 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
                     result:SetText(title .. ": " .. slot.lookup);
                     if (index == 3 and applySavedBaseline) then applySavedBaseline(candidate.slot); end
                     if (onSelected) then onSelected(); end
-                end, false);
+                end
+                variantRecalculate.Click = function()
+                    variantList:ClearItems();
+                    if (sourcesWindow) then sourcesWindow:SetVisible(false); end
+                    local candidates, err = StatCapsItemDatabase.RelevelCandidates(slot.variants,
+                        variantLevel:GetText(), comparisonLevel());
+                    if (not candidates) then variantStatus:SetText(T(err)); return; end
+                    renderCandidates(variantList, candidates, choose, false);
+                    variantStatus:SetText(T("Blank uses database/base levels. Check every bonus against the tooltip."));
+                end
+                variantRecalculate.Click();
                 picker:SetVisible(true);
                 picker:Activate();
             end
@@ -588,6 +637,35 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
             if (index == 3 and equipmentSlot and applySavedBaseline) then applySavedBaseline(equipmentSlot); end
         end
         slot.fillItem = fillItem;
+        slot.reuseReviewed = function(info, equipmentSlot, equipmentKey, context, data)
+            if (index == 3 or not info) then return false; end
+            local err;
+            if (not context) then context, err = getContext(selectedProfileKey); end
+            if (not context) then return nil, err; end
+            local idHex = type(data) == "string" and data:match("^0[xX]0,0[xX](%x+)$");
+            local item, key;
+            local function recordMiss(reason)
+                StatCapsManual.LastVariantReuseIssue = "Variant reuse v3: " .. info:GetName()
+                    .. "; slot=" .. tostring(equipmentSlot) .. "; key=" .. tostring(equipmentKey)
+                    .. "; " .. reason .. "\n" .. (context.reviewedEquipmentTrace or "No main-context trace.");
+                return false;
+            end
+            for currentKey, reviewed in pairs(context.reviewedEquipment or {}) do
+                if ((not equipmentKey or equipmentKey == currentKey) and reviewed.values
+                    and reviewed.name == info:GetName() and reviewed.category == info:GetCategory()
+                    and (not equipmentSlot or StatCapsManual.CompatibleSlots(reviewed.slot, equipmentSlot))
+                    and (not idHex or reviewed.id == tonumber(idHex, 16))
+                    and (not reviewed.characterLevel or reviewed.characterLevel == context.level)) then
+                    if (item) then return recordMiss("Multiple matching equipped reviews."); end
+                    item, key = reviewed, currentKey;
+                end
+            end
+            if (not item) then return recordMiss("No matching equipped review."); end
+            applySavedItem(slot, item, key, context);
+            slot.info, slot.fromWorn = info, true;
+            icon:SetItemInfo(info);
+            return true;
+        end
         drop.DragDrop = function(_, args)
             local drag = args and args.DragDropInfo;
             if (drag) then drag:SetSuccessful(false); end
@@ -645,6 +723,7 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
         clear:SetText(T("Clear"));
         clear.Click = function()
             slot.info = nil;
+            slot.category = nil;
             slot.lookup = nil;
             slot.equipmentSlot = nil;
             slot.equipmentKey = nil;
@@ -666,6 +745,7 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
         search.Click = function()
             openSearch(title, function(candidate)
                 slot.info = nil; -- A database choice is not a verified inventory instance.
+                slot.category = candidate.category;
                 slot.fromWorn = false;
                 slot.equipmentSlot = candidate.slot;
                 slot.equipmentKey = nil;
@@ -826,6 +906,7 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
             end
         end
         slot.equipmentSlot = saved.slot == "Shield" and "OFF_HAND" or saved.slot;
+        slot.category = saved.category;
         slot.equipmentKey = equipmentKey;
         slot.characterLevel = saved.characterLevel;
         slot.bonusesUnknown = saved.values == nil;
@@ -847,13 +928,19 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
             result:SetText(slot.lookup);
         end
     end
-    local function askEquippedVariant()
+    local function askEquippedVariant(continueComparison)
         for index = 1, 2 do
             if (slots[index].variants) then
-                slots[index].chooseVariant(askEquippedVariant);
-                return;
+                local slot = slots[index];
+                local reused, err = slot.reuseReviewed(slot.info, slot.equipmentSlot, slot.equipmentKey);
+                if (reused == nil) then result:SetText(T(err)); return; end
+                if (not reused) then
+                    slot.chooseVariant(function() askEquippedVariant(continueComparison); end);
+                    return;
+                end
             end
         end
+        if (continueComparison and analyze and (slots[3].info or slots[3].equipmentSlot)) then analyze.Click(); end
     end
     applySavedBaseline = function(equipmentSlot)
         report:SetVisible(false);
@@ -869,7 +956,10 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
             end
             local matches = {};
             for _, item in ipairs(items) do
-                if (item.equipmentSlot == equipmentSlot) then
+                local category = slots[3].info and slots[3].info:GetCategory() or slots[3].category;
+                if (StatCapsLoadouts.SlotFits(item.equipmentSlot, equipmentSlot)
+                    and StatCapsManual.CompatibleItems(item.equipmentSlot, item.info:GetCategory(),
+                        equipmentSlot, category) ~= false) then
                     matches[#matches + 1] = item;
                 end
             end
@@ -884,11 +974,15 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
                     and slot.equipmentKey == item.key and slot.info:GetName() == item.info:GetName()
                     and slot.info:GetCategory() == item.info:GetCategory()
                     and (not slot.characterLevel or slot.characterLevel == comparisonLevel());
-                if (sameVerified) then
-                    slot.confirm:SetChecked(false);
-                else
-                    slot.clear();
-                    slot.fillItem(item.info, nil, false, true, item.equipmentSlot, true, item.key);
+                local reused, err = slot.reuseReviewed(item.info, item.equipmentSlot, item.key);
+                if (reused == nil) then result:SetText(T(err)); return; end
+                if (not reused) then
+                    if (sameVerified) then
+                        slot.confirm:SetChecked(false);
+                    else
+                        slot.clear();
+                        slot.fillItem(item.info, nil, false, true, item.equipmentSlot, true, item.key);
+                    end
                 end
             end
             if (#matches == 1) then slots[2].clear(); end
@@ -899,7 +993,7 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
                 result:SetText("No matching equipped item found. Choose a worn item or enter bonuses manually.");
             else
                 result:SetText("Matching equipped items loaded. Choose the exact variant for items with missing values, then Analyze.");
-                askEquippedVariant();
+                askEquippedVariant(true);
             end
             return;
         end
@@ -910,6 +1004,12 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
         local savedItems = context and context.savedCharacter and context.savedCharacter.items;
         equipmentSlot = equipmentSlot or "OFF_HAND";
         local matches = StatCapsCharacterProfiles.MatchingItems(savedItems, equipmentSlot);
+        local compatible = {};
+        for _, match in ipairs(matches) do
+            if (StatCapsManual.CompatibleItems(match.item.slot, match.item.category,
+                equipmentSlot, slots[3].category) ~= false) then compatible[#compatible + 1] = match; end
+        end
+        matches = compatible;
         if (#matches == 0) then
             slots[1].name:SetText(T("No saved item baseline"));
             result:SetText("No saved " .. tostring(equipmentSlot)
@@ -917,9 +1017,10 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
             return;
         end
         for index = 1, math.min(2, #matches) do
-            applySavedItem(slots[index], matches[index].item, matches[index].key, context);
+            local reviewed = (context.reviewedEquipment or {})[matches[index].key];
+            applySavedItem(slots[index], reviewed or matches[index].item, matches[index].key, context);
         end
-        askEquippedVariant();
+        askEquippedVariant(true);
     end
     profilePicker = StatCapsTheme.Window();
     profilePicker:SetText(T("Stat Caps - Choose comparison character"));
@@ -985,7 +1086,7 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
         searchQuery, searchPage = query, 1;
         searchItems();
     end
-    local analyze = StatCapsTheme.Button();
+    analyze = StatCapsTheme.Button();
     analyze:SetParent(win);
     analyze:SetPosition(15, 588);
     analyze:SetSize(150, 22);
@@ -994,6 +1095,16 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
         report:SetVisible(false);
         local context, err = getContext(selectedProfileKey);
         if (not context) then result:SetText(err); return; end
+        for _, slot in ipairs(slots) do
+            if (slot.variants) then
+                local reused, err = slot.reuseReviewed(slot.info, slot.equipmentSlot, slot.equipmentKey, context);
+                if (reused == nil) then result:SetText(T(err)); return; end
+                if (not reused) then
+                    slot.chooseVariant(function() analyze.Click(); end);
+                    return;
+                end
+            end
+        end
         local values = {};
         for index, slot in ipairs(slots) do
             local texts, hasInput = {}, false;
@@ -1041,10 +1152,12 @@ function StatCapsManual.Open(getContext, getProfiles, saveCharacterItem, openLoa
         end
         for index = 1, 2 do
             if (values[index]) then
-                if ((slots[index].info and slots[3].info
+                local fits = StatCapsManual.CompatibleItems(slots[index].equipmentSlot,
+                    slots[index].info and slots[index].info:GetCategory() or slots[index].category,
+                    slots[3].equipmentSlot, slots[3].info and slots[3].info:GetCategory() or slots[3].category);
+                if (fits == false or (fits == nil and slots[index].info and slots[3].info
                         and slots[index].info:GetCategory() ~= slots[3].info:GetCategory())
-                    or (slots[index].equipmentSlot and slots[3].equipmentSlot
-                        and slots[index].equipmentSlot ~= slots[3].equipmentSlot)) then
+                    ) then
                     result:SetText("Item categories do not match. Compare items for the same equipment slot.");
                     return;
                 end
